@@ -7,7 +7,7 @@ using namespace Greenhouse::Sensors;
 using namespace Greenhouse::Constants;
 
 void test_read_dht_data() {
-    DHTSensor dht(DHT_PIN);
+    DHTSensor dht(DHT_PIN, DHTType::DHT22);
     dht.begin();
     delay(2000); // DHT22 takes around 2 seconds to initialize
 
