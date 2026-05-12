@@ -15,15 +15,8 @@ namespace Greenhouse::Constants {
 
     constexpr char MQTT_SERVER[] = "";
 
-    constexpr char TEMPERATURE_TOPIC[] = "sensor/DHT22/temperature_celsius";
-    constexpr char HUMIDITY_TOPIC[] = "sensor/DHT22/humidity";
-
-    constexpr char TIME_YEAR_TOPIC[] = "sensor/time/year";
-    constexpr char TIME_MONTH_TOPIC[] = "sensor/time/month";
-    constexpr char TIME_DAY_TOPIC[] = "sensor/time/day";
-    constexpr char TIME_HOUR_TOPIC[] = "sensor/time/hour";
-    constexpr char TIME_MINUTE_TOPIC[] = "sensor/time/minute";
-    constexpr char TIME_SECOND_TOPIC[] = "sensor/time/second";
+    constexpr char DISCOVERY_TOPIC[] = "greenhouses/";
+    constexpr char TELEMETRY_TOPIC[] = "telemetry"; // Final part of hierarchical topic
 
     constexpr char NTP_SERVER[] = "pool.ntp.org";
     constexpr long GMT_OFFSET_SEC = 3 * 3600; // GMT+3 in Turkey

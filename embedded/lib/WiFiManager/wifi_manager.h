@@ -11,6 +11,7 @@ public:
                const char *eapPassword); // for eduroam
     bool isConnected();
     String getIPAddress();
+    String getMACAddress();
     void setMode(wifi_mode_t mode);
 
 private:

@@ -1,5 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import '../core/models.dart';
+import '../core/storage.dart';
+import '../core/mqtt_service.dart';
+import 'add_greenhouse_page.dart';
+import 'scan_device_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -12,6 +18,189 @@ class _SettingsPageState extends State<SettingsPage> {
   double maxTemp = 30.0;
   double minHumid = 45.0;
 
+  List<Greenhouse> _greenhouses = [];
+  Map<String, List<String>> _deviceMap = {};
+  Map<String, bool> _deviceStatus = {};
+  final Map<String, StreamSubscription> _subscriptions = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subscriptions.values) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    final ghs = await Storage.loadGreenhouses();
+    final map = await Storage.getGreenhousesDevicesMap();
+    
+    if (mounted) {
+      setState(() {
+        _greenhouses = ghs;
+        _deviceMap = map;
+        _isLoading = false;
+      });
+      _initializeStatusMonitoring();
+    }
+  }
+
+  void _initializeStatusMonitoring() {
+    final mqtt = MqttService();
+    _deviceMap.forEach((ghId, deviceIds) {
+      for (final devId in deviceIds) {
+        if (!_subscriptions.containsKey(devId)) {
+          final sub = mqtt.subscribeToStatus(ghId, devId).listen((isOnline) {
+            if (mounted) {
+              setState(() {
+                _deviceStatus[devId] = isOnline;
+              });
+            }
+          });
+          _subscriptions[devId] = sub;
+        }
+      }
+    });
+  }
+
+  Future<void> _assignDeviceToGreenhouse(String deviceId) async {
+    if (_greenhouses.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No greenhouse found. Add one first."),
+            backgroundColor: Colors.orangeAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final selected = await showDialog<Greenhouse>(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111611),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: const Text('Select Greenhouse', style: TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _greenhouses.length,
+              itemBuilder: (context, index) {
+                final g = _greenhouses[index];
+                return ListTile(
+                  title: Text(g.name, style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(g.id, style: const TextStyle(color: Colors.white54)),
+                  onTap: () => Navigator.pop(dialogCtx, g),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+
+    await Storage.addDeviceToGreenhouse(selected.id, deviceId);
+    await _loadData();
+    final mapping = await Storage.getGreenhousesDevicesMap();
+    await MqttService.publishGreenhouses(mapping);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Device added to ${selected.name} and synced to MQTT"),
+          backgroundColor: AppColors.neonGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeletion(Greenhouse greenhouse) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text("Delete Greenhouse", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to delete '${greenhouse.name}'? This action cannot be undone.",
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // Cancel subscriptions for devices in this greenhouse before removing
+      final devicesToRemove = _deviceMap[greenhouse.id] ?? [];
+      for (final devId in devicesToRemove) {
+        _subscriptions[devId]?.cancel();
+        _subscriptions.remove(devId);
+        _deviceStatus.remove(devId);
+      }
+
+      await Storage.removeGreenhouse(greenhouse.id);
+      await _loadData();
+      final mapping = await Storage.getGreenhousesDevicesMap();
+      await MqttService.publishGreenhouses(mapping);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Greenhouse '${greenhouse.name}' deleted"),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  List<Widget> _buildDeviceList() {
+    final List<Widget> devices = [];
+    _deviceMap.forEach((ghId, deviceIds) {
+      final gh = _greenhouses.firstWhere((g) => g.id == ghId, orElse: () => Greenhouse(id: ghId, name: "Unknown Greenhouse"));
+      for (final devId in deviceIds) {
+        final isOnline = _deviceStatus[devId] ?? false;
+        devices.add(_buildDeviceCard(devId, "Assigned to: ${gh.name}", isOnline));
+      }
+    });
+    return devices;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,7 +212,9 @@ class _SettingsPageState extends State<SettingsPage> {
         title: const Text("System Settings", style: TextStyle(color: Colors.white, fontSize: 18)),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: AppColors.neonGreen))
+        : SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
@@ -33,18 +224,48 @@ class _SettingsPageState extends State<SettingsPage> {
             
             // --- MY GREENHOUSES ---
             _buildSectionHeader("MY GREENHOUSES"),
-            _buildGreenhouseCard("Tomato Greenhouse", "Zone A • 4 Sensors Active", Icons.eco),
-            _buildGreenhouseCard("Orchid Nursery", "Zone B • 2 Sensors Active", Icons.local_florist),
+            if (_greenhouses.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text("No greenhouses added yet.", style: TextStyle(color: Colors.white24, fontSize: 13)),
+              )
+            else
+              ..._greenhouses.map((g) => _buildGreenhouseCard(
+                g, 
+                "${(_deviceMap[g.id] ?? []).length} Devices Active", 
+                Icons.eco,
+              )),
             
             // Add Greenhouse Button
-            _buildOutlineButton(Icons.add_circle_outline, "Add Greenhouse"),
+            _buildOutlineButton(
+              Icons.add_circle_outline,
+              "Add Greenhouse",
+              () async {
+                final result = await Navigator.push<Greenhouse>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AddGreenhousePage(),
+                  ),
+                );
+                if (result != null) {
+                  await _loadData();
+                  final mapping = await Storage.getGreenhousesDevicesMap();
+                  await MqttService.publishGreenhouses(mapping);
+                }
+              },
+            ),
 
             const SizedBox(height: 30),
 
             // --- HARDWARE ---
             _buildSectionHeader("HARDWARE"),
-            _buildDeviceCard("ESP32-Control-01", "Assigned to: Tomato Greenhouse", true),
-            _buildDeviceCard("Arduino-Sensor-B", "Unassigned Device", false),
+            if (_deviceMap.values.every((list) => list.isEmpty))
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text("No devices connected yet.", style: TextStyle(color: Colors.white24, fontSize: 13)),
+              )
+            else
+              ..._buildDeviceList(),
             
             // Scan New Device Button
             _buildScanButton(),
@@ -92,7 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildGreenhouseCard(String title, String subtitle, IconData icon) {
+  Widget _buildGreenhouseCard(Greenhouse greenhouse, String subtitle, IconData icon) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(15),
@@ -112,12 +333,15 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(greenhouse.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 12)),
               ],
             ),
           ),
-          const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+            onPressed: () => _confirmDeletion(greenhouse),
+          ),
         ],
       ),
     );
@@ -170,44 +394,79 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildOutlineButton(IconData icon, String text) {
-    return Container(
+Widget _buildOutlineButton(IconData icon, String text, VoidCallback onTap) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 15),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.05), style: BorderStyle.solid),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: AppColors.neonGreen, size: 20),
           const SizedBox(width: 10),
-          Text(text, style: const TextStyle(color: AppColors.neonGreen, fontWeight: FontWeight.bold)),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.neonGreen,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildScanButton() {
-    return Container(
+  return GestureDetector(
+    onTap: () async {
+      final scannedCode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ScanDevicePage(),
+        ),
+      );
+
+      if (scannedCode != null && mounted) {
+        await _assignDeviceToGreenhouse(scannedCode);
+      }
+    },
+    child: Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 15),
       decoration: BoxDecoration(
         color: AppColors.neonGreen,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: AppColors.neonGreen.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.neonGreen.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.qr_code_scanner, color: Colors.black, size: 20),
-          const SizedBox(width: 10),
-          Text("Scan New Device", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          SizedBox(width: 10),
+          Text(
+            "Scan New Device",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildThresholdSlider(String title, double value, String unit, Color color, Function(double) onChanged) {
     return Container(

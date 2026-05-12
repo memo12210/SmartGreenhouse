@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../core/constants.dart';
+import '../core/models.dart';
+import '../core/storage.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -12,38 +14,69 @@ class AnalyticsPage extends StatefulWidget {
 class _AnalyticsPageState extends State<AnalyticsPage> {
   int selectedTab = 0; // 0: Temp, 1: Humid, 2: Light
 
+  List<Greenhouse> _greenhouses = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final ghs = await Storage.loadGreenhouses();
+    if (mounted) {
+      setState(() {
+        _greenhouses = ghs;
+        _isLoading = false;
+      });
+    }
+  }
+
   // --- DINAMIK VERI SETLERI ---
   
   // Dev Gösterge Değerleri
   String get _mainValue {
-    if (selectedTab == 0) return "24.5°C";
-    if (selectedTab == 1) return "64%";
-    return "850lx";
+    if (_greenhouses.isEmpty) return "--";
+    // actual data placeholder
+    if (selectedTab == 0) return "N/A°C";
+    if (selectedTab == 1) return "N/A%";
+    return "N/Alx";
   }
 
   // Grafik Verileri (Spots)
   List<FlSpot> get _chartSpots {
-    switch (selectedTab) {
-      case 0: // Temp
-        return const [FlSpot(0, 2), FlSpot(1, 3.5), FlSpot(2, 3), FlSpot(3, 4), FlSpot(4, 3.2), FlSpot(5, 4.5), FlSpot(6, 3)];
-      case 1: // Humid
-        return const [FlSpot(0, 4), FlSpot(1, 3), FlSpot(2, 5), FlSpot(3, 4.5), FlSpot(4, 5.5), FlSpot(5, 4), FlSpot(6, 4.8)];
-      case 2: // Light
-        return const [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 1.5), FlSpot(3, 3), FlSpot(4, 2.5), FlSpot(5, 4), FlSpot(6, 3.5)];
-      default:
-        return const [];
-    }
+    return const []; // Empty by default
   }
 
   // Tooltip Metni
   String get _tooltipText {
-    if (selectedTab == 0) return "Wed: 25.1°";
-    if (selectedTab == 1) return "Wed: 62%";
-    return "Wed: 810lx";
+    return "No Data";
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.neonGreen));
+    }
+
+    if (_greenhouses.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.analytics_outlined, color: AppColors.textGrey, size: 64),
+            const SizedBox(height: 20),
+            const Text("No Analytics Data", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            const Text("Add a greenhouse and connect a device.", style: TextStyle(color: AppColors.textGrey)),
+          ],
+        ),
+      );
+    }
+
+    final activeGreenhouse = _greenhouses.first;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -60,7 +93,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Analytics", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text("Greenhouse 1 • Tomato Crop", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                  Text(activeGreenhouse.name, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
                 ],
               ),
               Container(
@@ -72,7 +105,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           ),
           const SizedBox(height: 25),
 
-          // 1. TAB BAR (Artık Tıklanabilir)
+          // 1. TAB BAR
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
@@ -104,9 +137,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.trending_up, color: AppColors.neonGreen, size: 16),
+                      Icon(Icons.trending_flat, color: AppColors.neonGreen, size: 16),
                       SizedBox(width: 4),
-                      Text("+1.2% THIS WEEK", style: TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text("WAITING FOR DATA", style: TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -118,22 +151,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           // 3. DINAMIK GRAFİK ALANI
           SizedBox(
             height: 200,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                LineChart(_mainChartData()),
-                // Dinamik Tooltip
-                Positioned(
-                  left: MediaQuery.of(context).size.width * 0.35,
-                  top: -20,
-                  child: _buildTooltip(_tooltipText),
+            child: _chartSpots.isEmpty 
+              ? Center(child: Text("No chart data yet", style: TextStyle(color: Colors.white.withOpacity(0.3))))
+              : Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    LineChart(_mainChartData()),
+                    Positioned(
+                      left: MediaQuery.of(context).size.width * 0.35,
+                      top: -20,
+                      child: _buildTooltip(_tooltipText),
+                    ),
+                  ],
                 ),
-              ],
-            ),
           ),
           const SizedBox(height: 50),
 
-          // 4. AI YIELD FORECAST
+          // 4. AI YIELD FORECAST (Placeholder)
           _buildForecastCard(),
 
           const SizedBox(height: 20),
@@ -141,9 +175,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           // 5. EN ALT İKİLİ KARTLAR
           Row(
             children: [
-              Expanded(child: _buildBottomSmallCard("Watering", "On Track", Icons.opacity)),
+              Expanded(child: _buildBottomSmallCard("Watering", "Calculating...", Icons.opacity)),
               const SizedBox(width: 15),
-              Expanded(child: _buildBottomSmallCard("Pest Risk", "Low", Icons.bug_report)),
+              Expanded(child: _buildBottomSmallCard("Pest Risk", "N/A", Icons.bug_report)),
             ],
           ),
           const SizedBox(height: 120),

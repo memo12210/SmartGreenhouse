@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="7b7afc69-e4fc-4cd8-8046-89e1f6c58673" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../embedded/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/../embedded/platformio.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/constants.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/constants.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/pages/analytics_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/pages/analytics_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/pages/dashboard_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/pages/dashboard_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/pages/settings_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/pages/settings_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/flutter/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/runner/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/runner/main.cc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/runner/my_application.cc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/linux/runner/my_application.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="3DRQp0Sw6cS2c66qLONFx4XnvyS" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/home/memo/Documents/Projects/Smart Greenhouse Monitoring System"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="7b7afc69-e4fc-4cd8-8046-89e1f6c58673" name="Changes" comment="" />
+      <created>1778242582559</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1778242582559</updated>
+    </task>
+    <servers />
+  </component>
+</project>

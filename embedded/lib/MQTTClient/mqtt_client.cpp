@@ -17,9 +17,16 @@ void MQTTClient::begin() {
 
 void MQTTClient::reconnect() {
     while (!_client.connected()) {
-        LOG_INFO("Attempting MQTT connection...");
+        LOG_INFO("Attempting MQTT connection as %s...", _clientId);
 
-        if (_client.connect("ESP32Client")) {
+        bool connected = false;
+        if (_willTopic != nullptr) {
+            connected = _client.connect(_clientId, _willTopic, _willQos, _willRetained, _willMessage);
+        } else {
+            connected = _client.connect(_clientId);
+        }
+
+        if (connected) {
             LOG_INFO("Connected");
 
             // MQTT subscriptions are not guaranteed after reconnect, so restore all bindings.
@@ -66,6 +73,17 @@ void MQTTClient::subscribe(const char *topic, String *target) {
     if (_client.connected()) {
         _client.subscribe(topic);
     }
+}
+
+void MQTTClient::setWill(const char *topic, const char *payload, int qos, bool retained) {
+    _willTopic = topic;
+    _willMessage = payload;
+    _willQos = qos;
+    _willRetained = retained;
+}
+
+void MQTTClient::setClientId(const char *clientId) {
+    _clientId = clientId;
 }
 
 void MQTTClient::callback(char *topic, byte *payload, unsigned int length) {

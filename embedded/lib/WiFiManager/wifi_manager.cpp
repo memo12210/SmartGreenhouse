@@ -56,4 +56,8 @@ String WiFiManager::getIPAddress() {
     }
 }
 
+String WiFiManager::getMACAddress() {
+    return WiFi.macAddress();
+}
+
 void WiFiManager::setMode(wifi_mode_t mode) { WiFi.mode(mode); }

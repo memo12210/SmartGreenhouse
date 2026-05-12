@@ -18,6 +18,8 @@ public:
     void publish(const char *topic, const char *payload, bool retained = false);
     bool isConnected();
     void subscribe(const char *topic, String *target);
+    void setWill(const char *topic, const char *payload, int qos = 1, bool retained = true);
+    void setClientId(const char *clientId);
 
 private:
     struct Subscriber {
@@ -30,6 +32,11 @@ private:
     static const int MAX_BINDINGS = 10;
     const char *_mqttServer;
     int _mqttPort;
+    const char *_clientId = "ESP32Client";
+    const char *_willTopic = nullptr;
+    const char *_willMessage = nullptr;
+    int _willQos = 0;
+    bool _willRetained = false;
     WiFiClient _espClient;
     PubSubClient _client;
     Subscriber _subscribers[MAX_BINDINGS];

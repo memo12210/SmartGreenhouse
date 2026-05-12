@@ -35,8 +35,8 @@ class MainTempCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
-              const Text("24°C", style: TextStyle(fontSize: 64, fontWeight: FontWeight.bold)),
-              const Text("Target: 22°C - 26°C", style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+              const Text("--°C", style: TextStyle(fontSize: 64, fontWeight: FontWeight.bold)),
+              const Text("Target: --°C - --°C", style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
             ],
           ),
           Column(
@@ -47,7 +47,7 @@ class MainTempCard extends StatelessWidget {
                   color: AppColors.neonGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text("Optimal", style: TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: const Text("Status: --", style: TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 20),
               Stack(
@@ -56,10 +56,10 @@ class MainTempCard extends StatelessWidget {
                   const SizedBox(
                     width: 70, height: 70,
                     child: CircularProgressIndicator(
-                      value: 0.75, strokeWidth: 8, color: AppColors.neonGreen, backgroundColor: Colors.white10,
+                      value: 0, strokeWidth: 8, color: AppColors.neonGreen, backgroundColor: Colors.white10,
                     ),
                   ),
-                  const Text("Good", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const Text("--", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
             ],
