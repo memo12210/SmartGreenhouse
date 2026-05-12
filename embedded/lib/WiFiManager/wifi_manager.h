@@ -17,7 +17,8 @@ public:
 private:
     String _ssid;
     String _password;
-    const uint16_t _timeout = 30000; // try to connect for 30 seconds
+    const uint16_t _timeout = 30000;        // try to connect for 30 seconds
+    const uint16_t _connectionDelay = 2000; // 2 second delay between attempts
 };
 
 #endif // WIFI_MANAGER_H

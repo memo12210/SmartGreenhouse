@@ -20,6 +20,9 @@ Preferences preferences;
 String greenhouseId = "";
 String discoveryPayload = "";
 bool isDiscovered = false;
+String statusTopic = "";
+bool statusPublishedOnline = false;
+bool wifiWasConnected = false;
 
 String getISO8601Time() {
     tm timeInfo;
@@ -31,12 +34,32 @@ String getISO8601Time() {
     return String(buffer);
 }
 
+String normalizeMacAddress(String mac) {
+    mac.replace(":", "");
+    mac.replace("-", "");
+    mac.toUpperCase();
+    return mac;
+}
+
 String getStatusPayload(bool online) {
     String payload = "{";
     payload += "\"online\": " + String(online ? "true" : "false") + ",";
     payload += "\"timestamp\": \"" + getISO8601Time() + "\"";
     payload += "}";
     return payload;
+}
+
+void publishDeviceStatus(bool online) {
+    if (statusTopic.length() == 0) {
+        return;
+    }
+
+    if (!mqttClient.isConnected()) {
+        return;
+    }
+
+    mqttClient.publish(statusTopic.c_str(), getStatusPayload(online).c_str(), true);
+    statusPublishedOnline = online;
 }
 
 void setup() {
@@ -55,7 +78,7 @@ void setup() {
         preferences.begin("gh_system", false);
         greenhouseId = preferences.getString("gh_id", "");
 
-        String macAddress = wifiManager.getMACAddress();
+        String macAddress = normalizeMacAddress(wifiManager.getMACAddress());
         static String cId = "ESP32_" + macAddress;
         mqttClient.setClientId(cId.c_str());
 
@@ -68,13 +91,14 @@ void setup() {
             LOG_INFO("Loaded saved Greenhouse ID from NVS: %s", greenhouseId.c_str());
             isDiscovered = true;
 
-            String statusTopic = greenhouseId + "/" + macAddress + "/status";
+            statusTopic = greenhouseId + "/" + macAddress + "/status";
 
             // Static allocation for MQTTClient internal pointers
             static String willMsg = getStatusPayload(false);
             static String sTopic = statusTopic;
 
             mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
+            wifiWasConnected = true;
         }
     } else {
         LOG_WARN("Failed to connect to WiFi");
@@ -84,7 +108,8 @@ void setup() {
 }
 
 void processDiscovery() {
-    if (discoveryPayload.length() == 0) return;
+    if (discoveryPayload.length() == 0)
+        return;
 
     LOG_INFO("Received discovery payload. Parsing...");
 
@@ -97,28 +122,28 @@ void processDiscovery() {
         return;
     }
 
-    String mac = wifiManager.getMACAddress();
+    String mac = normalizeMacAddress(wifiManager.getMACAddress());
     JsonObject root = doc.as<JsonObject>();
 
-    for (JsonPair p : root) {
+    for (JsonPair p: root) {
         JsonArray devices = p.value().as<JsonArray>();
-        for (JsonVariant v : devices) {
-            if (v.as<String>() == mac) {
+        for (JsonVariant v: devices) {
+            if (normalizeMacAddress(v.as<String>()) == mac) {
                 greenhouseId = String(p.key().c_str());
                 LOG_INFO("Discovered assigned Greenhouse ID: %s", greenhouseId.c_str());
 
                 preferences.putString("gh_id", greenhouseId);
                 isDiscovered = true;
+                statusTopic = greenhouseId + "/" + mac + "/status";
 
                 // Setup status topics after discovery
-                String statusTopic = greenhouseId + "/" + mac + "/status";
                 static String willMsg = getStatusPayload(false);
                 static String sTopic = statusTopic;
 
                 mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
 
-                // Reconnect to apply Will and publish Online
-                mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
+                // Publish online status once the device has an assigned greenhouse.
+                publishDeviceStatus(true);
                 return;
             }
         }
@@ -129,12 +154,37 @@ void processDiscovery() {
 }
 
 void loop() {
-    if (!wifiManager.isConnected())
+    bool wifiConnected = wifiManager.isConnected();
+
+    if (!wifiConnected) {
+        if (wifiWasConnected) {
+            LOG_WARN("WiFi disconnected; marking device offline.");
+            publishDeviceStatus(false);
+            wifiWasConnected = false;
+        }
+
         LOG_WARN("WiFi connection lost");
+        delay(1000);
+        return;
+    }
+
+    if (!wifiWasConnected) {
+        wifiWasConnected = true;
+    }
 
     mqttClient.loop();
 
+    if (isDiscovered && !statusPublishedOnline) {
+        publishDeviceStatus(true);
+    }
+
     if (!isDiscovered) {
+        static unsigned long lastDiscoveryLog = 0;
+        if (millis() - lastDiscoveryLog > 5000) {
+            LOG_INFO("Waiting for discovery payload on %s", DISCOVERY_TOPIC);
+            lastDiscoveryLog = millis();
+        }
+
         processDiscovery();
         delay(1000);
         return;
@@ -147,7 +197,7 @@ void loop() {
     int soilMoisture = 0; // TODO: add real reading
 
     String timestamp = getISO8601Time();
-    String macAddress = wifiManager.getMACAddress();
+    String macAddress = normalizeMacAddress(wifiManager.getMACAddress());
 
     // Construct the JSON payload
     String payload = "{";

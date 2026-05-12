@@ -16,7 +16,7 @@ namespace Greenhouse::Constants {
     constexpr char MQTT_SERVER[] = "";
 
     constexpr char DISCOVERY_TOPIC[] = "greenhouses/";
-    constexpr char TELEMETRY_TOPIC[] = "telemetry"; // Final part of hierarchical topic
+    constexpr char TELEMETRY_TOPIC[] = "telemetry";
 
     constexpr char NTP_SERVER[] = "pool.ntp.org";
     constexpr long GMT_OFFSET_SEC = 3 * 3600; // GMT+3 in Turkey

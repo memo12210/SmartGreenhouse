@@ -5,7 +5,14 @@ WiFiManager::WiFiManager() {}
 
 void WiFiManager::begin(const char *ssid, const char *password) {
     WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(100);
     setMode(WIFI_STA);
+
+    // Optimize WiFi connection parameters
+    WiFi.setTxPower(WIFI_POWER_19_5dBm);
+    WiFi.setAutoConnect(true);
+    WiFi.setAutoReconnect(true);
 
     _ssid = ssid;
     _password = password;
@@ -20,13 +27,20 @@ void WiFiManager::begin(const char *ssid, const char *password) {
         }
 
         LOG_INFO("Trying to connect to a WiFi...");
-        delay(500);
+        delay(_connectionDelay);
     }
 }
 
 void WiFiManager::begin(const char *ssid, const char *eapIdentity, const char *eapUsername, const char *eapPassword) {
     WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(100);
     setMode(WIFI_STA);
+
+    // Optimize WiFi connection parameters
+    WiFi.setTxPower(WIFI_POWER_19_5dBm);
+    WiFi.setAutoConnect(true);
+    WiFi.setAutoReconnect(true);
 
     _ssid = ssid;
 
@@ -42,7 +56,7 @@ void WiFiManager::begin(const char *ssid, const char *eapIdentity, const char *e
         }
 
         LOG_INFO("Trying to connect to eduroam...");
-        delay(500);
+        delay(_connectionDelay);
     }
 }
 
@@ -56,8 +70,6 @@ String WiFiManager::getIPAddress() {
     }
 }
 
-String WiFiManager::getMACAddress() {
-    return WiFi.macAddress();
-}
+String WiFiManager::getMACAddress() { return WiFi.macAddress(); }
 
 void WiFiManager::setMode(wifi_mode_t mode) { WiFi.mode(mode); }
