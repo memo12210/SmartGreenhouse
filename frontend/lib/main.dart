@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'core/constants.dart';
 import 'pages/dashboard_page.dart';
 import 'widgets/bottom_nav_bar.dart';
@@ -7,12 +8,21 @@ import 'pages/settings_page.dart';
 import 'pages/alerts_page.dart';
 import 'pages/add_greenhouse_page.dart';
 import 'pages/scan_device_page.dart';
+import 'pages/auth/login_page.dart';
 import 'core/models.dart';
 import 'core/storage.dart';
 import 'core/mqtt_service.dart';
+import 'core/providers/auth_provider.dart';
 
 void main() {
-  runApp(const GreenhouseApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const GreenhouseApp(),
+    ),
+  );
 }
 
 class GreenhouseApp extends StatelessWidget {
@@ -26,7 +36,14 @@ class GreenhouseApp extends StatelessWidget {
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.transparent,
       ),
-      home: const MainNavigationWrapper(),
+      home: Consumer<AuthProvider>(
+        builder: (context, auth, _) {
+          if (!auth.isAuthenticated) {
+            return const LoginPage();
+          }
+          return const MainNavigationWrapper();
+        },
+      ),
     );
   }
 }

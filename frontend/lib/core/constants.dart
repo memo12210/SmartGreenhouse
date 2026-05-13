@@ -16,6 +16,10 @@ class MqttConfig {
   static const String topic = 'greenhouses/';
 }
 
+class ApiConfig {
+  static String get baseUrl => Platform.isAndroid ? 'http://10.0.2.2:8000/api/v1' : 'http://127.0.0.1:8000/api/v1';
+}
+
 class AppGradients {
   static const LinearGradient mainBackground = LinearGradient(
     begin: Alignment.topLeft,
