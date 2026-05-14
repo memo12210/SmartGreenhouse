@@ -13,6 +13,12 @@ class DeviceCreate(DeviceBase):
     mac_address: str
     greenhouse_id: UUID
 
+class DeviceClaim(BaseModel):
+    mac_address: str
+    secret: str
+    greenhouse_id: UUID
+    name: Optional[str] = None
+
 # Properties to receive via API on update
 class DeviceUpdate(DeviceBase):
     pass

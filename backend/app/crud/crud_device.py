@@ -3,7 +3,26 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from app.models.device import Device
 from app.models.greenhouse import Greenhouse
-from app.schemas.device import DeviceCreate, DeviceUpdate
+from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceClaim
+from app.core.security import get_password_hash
+
+def get_by_mac(db: Session, *, mac_address: str) -> Optional[Device]:
+    return db.query(Device).filter(Device.mac_address == mac_address).first()
+
+def claim_device(
+    db: Session, *, obj_in: DeviceClaim
+) -> Device:
+    db_obj = Device(
+        mac_address=obj_in.mac_address,
+        name=obj_in.name,
+        greenhouse_id=obj_in.greenhouse_id,
+        hashed_secret=get_password_hash(obj_in.secret),
+        is_active=True
+    )
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
 
 def get_by_owner(db: Session, *, owner_id: UUID, device_id: UUID) -> Optional[Device]:
     return db.query(Device).join(Greenhouse).filter(

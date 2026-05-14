@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants.dart';
-import '../core/models.dart';
-import '../core/storage.dart';
-import '../core/mqtt_service.dart';
+import 'package:greenhouse_app/core/constants.dart';
+import 'package:greenhouse_app/core/models.dart';
+import 'package:greenhouse_app/core/mqtt_service.dart';
 import 'package:greenhouse_app/core/providers/auth_provider.dart';
 import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
+import 'package:greenhouse_app/core/providers/device_provider.dart';
 import 'add_greenhouse_page.dart';
 import 'scan_device_page.dart';
 
@@ -21,15 +21,15 @@ class _SettingsPageState extends State<SettingsPage> {
   double maxTemp = 30.0;
   double minHumid = 45.0;
 
-  Map<String, List<String>> _deviceMap = {};
   Map<String, bool> _deviceStatus = {};
   final Map<String, StreamSubscription> _subscriptions = {};
-  bool _isInitLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadDeviceData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeStatusMonitoring();
+    });
   }
 
   @override
@@ -40,37 +40,213 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  Future<void> _loadDeviceData() async {
-    final map = await Storage.getGreenhousesDevicesMap();
-    
-    if (mounted) {
-      setState(() {
-        _deviceMap = map;
-        _isInitLoading = false;
-      });
-      _initializeStatusMonitoring();
+  void _initializeStatusMonitoring() {
+    final mqtt = MqttService();
+    final devices = context.read<DeviceProvider>().devices;
+    for (final device in devices) {
+      if (!_subscriptions.containsKey(device.macAddress)) {
+        final sub = mqtt.subscribeToStatus(device.greenhouseId, device.macAddress).listen((isOnline) {
+          if (mounted) {
+            setState(() {
+              _deviceStatus[device.macAddress] = isOnline;
+            });
+          }
+        });
+        _subscriptions[device.macAddress] = sub;
+      }
     }
   }
 
-  void _initializeStatusMonitoring() {
-    final mqtt = MqttService();
-    _deviceMap.forEach((ghId, deviceIds) {
-      for (final devId in deviceIds) {
-        if (!_subscriptions.containsKey(devId)) {
-          final sub = mqtt.subscribeToStatus(ghId, devId).listen((isOnline) {
-            if (mounted) {
-              setState(() {
-                _deviceStatus[devId] = isOnline;
-              });
-            }
-          });
-          _subscriptions[devId] = sub;
+  Future<void> _confirmDeletion(Greenhouse greenhouse) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text("Delete Greenhouse", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to delete '${greenhouse.name}'? This action cannot be undone.",
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await context.read<GreenhouseProvider>().deleteGreenhouse(greenhouse.id);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Greenhouse '${greenhouse.name}' deleted"),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error: ${e.toString()}"),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
         }
       }
-    });
+    }
   }
 
-  Future<void> _assignDeviceToGreenhouse(String deviceId) async {
+  Future<void> _confirmDeviceDeletion(Device device) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text("Unregister Device", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to remove device '${device.name ?? device.macAddress}'?",
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await context.read<DeviceProvider>().deleteDevice(device.id);
+        _subscriptions[device.macAddress]?.cancel();
+        _subscriptions.remove(device.macAddress);
+        _deviceStatus.remove(device.macAddress);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Device unregistered successfully"),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error: ${e.toString()}"),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showRenameDeviceDialog(Device device) {
+    final TextEditingController controller = TextEditingController(text: device.name ?? device.macAddress);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1F1A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: const Text(
+            "Rename Device",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: "Enter new name",
+              hintStyle: const TextStyle(color: Colors.white24),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.neonGreen,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isEmpty) return;
+                
+                Navigator.pop(dialogContext);
+                try {
+                  await context.read<DeviceProvider>().updateDevice(
+                    id: device.id,
+                    name: newName,
+                  );
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Rename failed: ${e.toString()}"),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _assignDeviceToGreenhouse({
+    required String macAddress,
+    required String secret,
+    String? name,
+  }) async {
+    if (!mounted) return;
+    
     final greenhouses = context.read<GreenhouseProvider>().greenhouses;
     if (greenhouses.isEmpty) {
       if (mounted) {
@@ -121,113 +297,186 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (selected == null || !mounted) return;
 
-    await Storage.addDeviceToGreenhouse(selected.id, deviceId);
-    await _loadDeviceData();
-    final mapping = await Storage.getGreenhousesDevicesMap();
-    await MqttService.publishGreenhouses(mapping);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Device added to ${selected.name} and synced to MQTT"),
-          backgroundColor: AppColors.neonGreen,
-          behavior: SnackBarBehavior.floating,
-        ),
+    try {
+      await context.read<DeviceProvider>().claimDevice(
+        macAddress: macAddress,
+        secret: secret,
+        greenhouseId: selected.id,
+        name: name,
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Device added to ${selected.name} and registered securely"),
+            backgroundColor: AppColors.neonGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _initializeStatusMonitoring();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Registration failed: ${e.toString()}"),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _confirmDeletion(Greenhouse greenhouse) async {
-    final confirmed = await showDialog<bool>(
+  void _showManualDeviceDialog({String? mac}) {
+    final TextEditingController macController = TextEditingController(text: mac);
+    final TextEditingController secretController = TextEditingController();
+    final TextEditingController nameController = TextEditingController();
+
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1F1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text("Delete Greenhouse", style: TextStyle(color: Colors.white)),
-        content: Text("Are you sure you want to delete '${greenhouse.name}'? This action cannot be undone.",
-            style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1F1A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text(
+            "Add Device Manually",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: macController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Device MAC Address",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Device Name (Optional)",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: secretController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Device Secret",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete"),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.neonGreen,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                final macVal = macController.text.trim();
+                final secretVal = secretController.text.trim();
+                final nameVal = nameController.text.trim();
+                
+                if (macVal.isEmpty || secretVal.isEmpty) return;
+                
+                Navigator.pop(dialogContext);
+                _assignDeviceToGreenhouse(
+                  macAddress: macVal,
+                  secret: secretVal,
+                  name: nameVal.isNotEmpty ? nameVal : null,
+                );
+              },
+              child: const Text("Add"),
+            ),
+          ],
+        );
+      },
     );
-
-    if (confirmed == true && mounted) {
-      try {
-        await context.read<GreenhouseProvider>().deleteGreenhouse(greenhouse.id);
-        
-        // Cleanup local device map too for now
-        await Storage.removeGreenhouse(greenhouse.id);
-        await _loadDeviceData();
-        
-        final mapping = await Storage.getGreenhousesDevicesMap();
-        await MqttService.publishGreenhouses(mapping);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Greenhouse '${greenhouse.name}' deleted"),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Error: ${e.toString()}"),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      }
-    }
   }
 
-  List<Widget> _buildDeviceList(List<Greenhouse> greenhouses) {
-    final List<Widget> devices = [];
-    _deviceMap.forEach((ghId, deviceIds) {
-      final gh = greenhouses.firstWhere((g) => g.id == ghId, orElse: () => Greenhouse(id: ghId, name: "Unknown Greenhouse"));
-      for (final devId in deviceIds) {
-        final isOnline = _deviceStatus[devId] ?? false;
-        devices.add(_buildDeviceCard(devId, "Assigned to: ${gh.name}", isOnline));
-      }
-    });
-    return devices;
+  List<Widget> _buildDeviceList(List<Device> devices, List<Greenhouse> greenhouses) {
+    return devices.map((device) {
+      final gh = greenhouses.firstWhere(
+        (g) => g.id == device.greenhouseId, 
+        orElse: () => Greenhouse(id: '', name: "Unknown Greenhouse")
+      );
+      final isOnline = _deviceStatus[device.macAddress] ?? false;
+      return _buildDeviceCard(device, "Assigned to: ${gh.name}", isOnline);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final greenhouseProvider = context.watch<GreenhouseProvider>();
+    final deviceProvider = context.watch<DeviceProvider>();
+    
     final greenhouses = greenhouseProvider.greenhouses;
-    final isLoading = greenhouseProvider.isLoading || _isInitLoading;
+    final devices = deviceProvider.devices;
+    
+    final isLoading = greenhouseProvider.isLoading || deviceProvider.isLoading;
+    final error = greenhouseProvider.error ?? deviceProvider.error;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D120D),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const Icon(Icons.arrow_back, color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text("System Settings", style: TextStyle(color: Colors.white, fontSize: 18)),
         centerTitle: true,
       ),
-      body: isLoading 
+      body: isLoading && greenhouses.isEmpty
         ? const Center(child: CircularProgressIndicator(color: AppColors.neonGreen))
         : RefreshIndicator(
-            onRefresh: () => greenhouseProvider.fetchGreenhouses(),
+            onRefresh: () async {
+              await greenhouseProvider.fetchGreenhouses();
+              await deviceProvider.fetchDevices();
+              _initializeStatusMonitoring();
+            },
             color: AppColors.neonGreen,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -237,7 +486,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   const SizedBox(height: 10),
                   
-                  if (greenhouseProvider.error != null) ...[
+                  if (error != null) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -251,13 +500,16 @@ class _SettingsPageState extends State<SettingsPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              greenhouseProvider.error!,
+                              error,
                               style: const TextStyle(color: Colors.redAccent, fontSize: 13),
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh, color: Colors.redAccent),
-                            onPressed: () => greenhouseProvider.fetchGreenhouses(),
+                            onPressed: () {
+                              greenhouseProvider.fetchGreenhouses();
+                              deviceProvider.fetchDevices();
+                            },
                           ),
                         ],
                       ),
@@ -275,7 +527,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   else
                     ...greenhouses.map((g) => _buildGreenhouseCard(
                       g, 
-                      "${(_deviceMap[g.id] ?? []).length} Devices Active", 
+                      "${devices.where((d) => d.greenhouseId == g.id).length} Devices Active", 
                       Icons.eco,
                     )),
                   
@@ -297,15 +549,15 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   // --- HARDWARE ---
                   _buildSectionHeader("HARDWARE"),
-                  if (_deviceMap.values.every((list) => list.isEmpty))
+                  if (devices.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Text("No devices connected yet.", style: TextStyle(color: Colors.white24, fontSize: 13)),
                     )
                   else
-                    ..._buildDeviceList(greenhouses),
+                    ..._buildDeviceList(devices, greenhouses),
                   
-                  // Scan New Device Button
+                  // Add Device Button
                   _buildScanButton(),
 
                   const SizedBox(height: 30),
@@ -386,7 +638,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildDeviceCard(String name, String status, bool isOnline) {
+  Widget _buildDeviceCard(Device device, String status, bool isOnline) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(15),
@@ -414,10 +666,18 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(device.name ?? device.macAddress, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 Text(status, style: TextStyle(color: isOnline ? Colors.white38 : Colors.orangeAccent.withOpacity(0.7), fontSize: 11)),
               ],
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: Colors.white38, size: 20),
+            onPressed: () => _showRenameDeviceDialog(device),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+            onPressed: () => _confirmDeviceDeletion(device),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -472,7 +732,16 @@ Widget _buildOutlineButton(IconData icon, String text, VoidCallback onTap) {
       );
 
       if (scannedCode != null && mounted) {
-        await _assignDeviceToGreenhouse(scannedCode);
+        // Support "MAC:SECRET" or just "MAC"
+        final parts = scannedCode.split(':');
+        final mac = parts[0];
+        final secret = parts.length > 1 ? parts[1] : '';
+
+        if (secret.isEmpty) {
+          _showManualDeviceDialog(mac: mac);
+        } else {
+          await _assignDeviceToGreenhouse(macAddress: mac, secret: secret);
+        }
       }
     },
     child: Container(

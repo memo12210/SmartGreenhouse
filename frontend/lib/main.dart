@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'core/constants.dart';
-import 'pages/dashboard_page.dart';
-import 'widgets/bottom_nav_bar.dart';
-import 'pages/analytics_page.dart';
-import 'pages/settings_page.dart';
-import 'pages/alerts_page.dart';
-import 'pages/add_greenhouse_page.dart';
-import 'pages/scan_device_page.dart';
-import 'pages/auth/login_page.dart';
-import 'core/models.dart';
-import 'core/storage.dart';
-import 'core/mqtt_service.dart';
+import 'package:greenhouse_app/core/constants.dart';
+import 'package:greenhouse_app/pages/dashboard_page.dart';
+import 'package:greenhouse_app/widgets/bottom_nav_bar.dart';
+import 'package:greenhouse_app/pages/analytics_page.dart';
+import 'package:greenhouse_app/pages/settings_page.dart';
+import 'package:greenhouse_app/pages/alerts_page.dart';
+import 'package:greenhouse_app/pages/add_greenhouse_page.dart';
+import 'package:greenhouse_app/pages/scan_device_page.dart';
+import 'package:greenhouse_app/pages/auth/login_page.dart';
+import 'package:greenhouse_app/core/models.dart';
+import 'package:greenhouse_app/core/mqtt_service.dart';
 import 'package:greenhouse_app/core/providers/auth_provider.dart';
 import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
+import 'package:greenhouse_app/core/providers/device_provider.dart';
 
 void main() {
   runApp(
@@ -24,6 +24,11 @@ void main() {
           create: (_) => GreenhouseProvider(),
           update: (_, auth, greenhouse) =>
               greenhouse!..updateToken(auth.token),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, DeviceProvider>(
+          create: (_) => DeviceProvider(),
+          update: (_, auth, device) =>
+              device!..updateToken(auth.token),
         ),
       ],
       child: const GreenhouseApp(),
@@ -123,7 +128,16 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
                     if (scannedCode == null || !context.mounted) return;
 
-                    await _assignDeviceToGreenhouse(scannedCode);
+                    // Support "MAC:SECRET" or just "MAC"
+                    final parts = scannedCode.split(':');
+                    final mac = parts[0];
+                    final secret = parts.length > 1 ? parts[1] : '';
+
+                    if (secret.isEmpty) {
+                      _showManualDeviceDialog(mac: mac);
+                    } else {
+                      await _assignDeviceToGreenhouse(macAddress: mac, secret: secret);
+                    }
                   },
                 ),
 
@@ -145,13 +159,13 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
                     );
 
                     if (result != null && context.mounted) {
-                      final mapping = await Storage.getGreenhousesDevicesMap();
+                      final mapping = context.read<DeviceProvider>().getGreenhouseDeviceMap();
                       await MqttService.publishGreenhouses(mapping);
 
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text("Greenhouse added: ${result.name} (${result.id}) and synced to MQTT"),
+                            content: Text("Greenhouse added: ${result.name}"),
                             backgroundColor: AppColors.neonGreen,
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -253,10 +267,14 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
     );
   }
 
-  Future<void> _assignDeviceToGreenhouse(String deviceId) async {
+  Future<void> _assignDeviceToGreenhouse({
+    required String macAddress,
+    required String secret,
+    String? name,
+  }) async {
     if (!mounted) return;
     
-    final greenhouses = await Storage.loadGreenhouses();
+    final greenhouses = context.read<GreenhouseProvider>().greenhouses;
     if (greenhouses.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -306,23 +324,40 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
     if (selected == null || !mounted) return;
 
-    await Storage.addDeviceToGreenhouse(selected.id, deviceId);
-    final mapping = await Storage.getGreenhousesDevicesMap();
-    await MqttService.publishGreenhouses(mapping);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Device added to ${selected.name} and synced to MQTT"),
-          backgroundColor: AppColors.neonGreen,
-          behavior: SnackBarBehavior.floating,
-        ),
+    try {
+      await context.read<DeviceProvider>().claimDevice(
+        macAddress: macAddress,
+        secret: secret,
+        greenhouseId: selected.id,
+        name: name,
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Device added to ${selected.name} and registered securely"),
+            backgroundColor: AppColors.neonGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Registration failed: ${e.toString()}"),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
-  void _showManualDeviceDialog() {
-    final TextEditingController controller = TextEditingController();
+  void _showManualDeviceDialog({String? mac}) {
+    final TextEditingController macController = TextEditingController(text: mac);
+    final TextEditingController secretController = TextEditingController();
+    final TextEditingController nameController = TextEditingController();
 
     showDialog(
       context: context,
@@ -336,18 +371,56 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
             "Add Device Manually",
             style: TextStyle(color: Colors.white),
           ),
-          content: TextField(
-            controller: controller,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: "Enter device ID (MAC address)",
-              hintStyle: const TextStyle(color: Colors.white24),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: macController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Device MAC Address",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Device Name (Optional)",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: secretController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Device Secret",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           actions: [
@@ -367,10 +440,18 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
                 ),
               ),
               onPressed: () {
-                final deviceId = controller.text.trim();
-                if (deviceId.isEmpty) return;
+                final macVal = macController.text.trim();
+                final secretVal = secretController.text.trim();
+                final nameVal = nameController.text.trim();
+                
+                if (macVal.isEmpty || secretVal.isEmpty) return;
+                
                 Navigator.pop(dialogContext);
-                _assignDeviceToGreenhouse(deviceId);
+                _assignDeviceToGreenhouse(
+                  macAddress: macVal,
+                  secret: secretVal,
+                  name: nameVal.isNotEmpty ? nameVal : null,
+                );
               },
               child: const Text("Add"),
             ),

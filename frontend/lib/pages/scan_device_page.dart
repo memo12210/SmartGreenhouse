@@ -34,26 +34,47 @@ class _ScanDevicePageState extends State<ScanDevicePage> {
     if (rawValue == null || rawValue.trim().isEmpty) return;
 
     _isHandled = true;
+    // rawValue can be "MAC:SECRET" or just "MAC"
     Navigator.pop(context, rawValue.trim());
   }
 
   void _showManualEntryDialog() {
+    final TextEditingController macController = TextEditingController();
+    final TextEditingController secretController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF111611),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          title: const Text("Manual MAC Entry", style: TextStyle(color: Colors.white)),
-          content: TextField(
-            controller: _manualController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: "AA:BB:CC:DD:EE:FF",
-              hintStyle: const TextStyle(color: Colors.white24),
-              enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.neonGreen)),
-            ),
+          title: const Text("Manual Entry", style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: macController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "MAC: AA:BB:CC:DD:EE:FF",
+                  hintStyle: const TextStyle(color: Colors.white24),
+                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.neonGreen)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: secretController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "Secret Key",
+                  hintStyle: const TextStyle(color: Colors.white24),
+                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.neonGreen)),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -66,10 +87,11 @@ class _ScanDevicePageState extends State<ScanDevicePage> {
                 foregroundColor: Colors.black,
               ),
               onPressed: () {
-                final val = _manualController.text.trim();
-                if (val.isNotEmpty) {
+                final mac = macController.text.trim();
+                final secret = secretController.text.trim();
+                if (mac.isNotEmpty && secret.isNotEmpty) {
                   Navigator.pop(context); // Close dialog
-                  Navigator.pop(this.context, val); // Return value
+                  Navigator.pop(this.context, "$mac:$secret"); // Return combined string
                 }
               },
               child: const Text("Submit"),

@@ -46,7 +46,7 @@ def create_device(
         )
 
     # Check if MAC address is already registered
-    existing_device = db.query(crud_device.Device).filter(crud_device.Device.mac_address == device_in.mac_address).first()
+    existing_device = crud_device.get_by_mac(db, mac_address=device_in.mac_address)
     if existing_device:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -54,6 +54,37 @@ def create_device(
         )
 
     device = crud_device.create_with_owner(db, obj_in=device_in)
+    return device
+
+@router.post("/claim", response_model=device_schema.Device)
+def claim_device(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    device_in: device_schema.DeviceClaim,
+) -> Any:
+    """
+    Claim a physical device using its MAC address and secret.
+    """
+    # Verify greenhouse ownership
+    gh = crud_greenhouse.get_by_owner(
+        db, owner_id=current_user.id, greenhouse_id=device_in.greenhouse_id
+    )
+    if not gh:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Greenhouse not found or you don't have permission to add devices to it",
+        )
+
+    # Check if MAC address is already registered
+    existing_device = crud_device.get_by_mac(db, mac_address=device_in.mac_address)
+    if existing_device:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This device has already been claimed",
+        )
+
+    device = crud_device.claim_device(db, obj_in=device_in)
     return device
 
 @router.get("/{id}", response_model=device_schema.Device)

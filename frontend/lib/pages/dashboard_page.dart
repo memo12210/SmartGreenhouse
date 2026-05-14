@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants.dart';
-import '../core/models.dart';
-import '../core/storage.dart';
-import '../core/mqtt_service.dart';
+import 'package:greenhouse_app/core/constants.dart';
+import 'package:greenhouse_app/core/models.dart';
+import 'package:greenhouse_app/core/mqtt_service.dart';
 import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
-import '../widgets/info_card.dart';
-import '../widgets/main_temp_card.dart';
-import '../widgets/control_tile.dart';
-import '../widgets/alert_card.dart';
-import '../widgets/gradient_background.dart';
+import 'package:greenhouse_app/core/providers/device_provider.dart';
+import 'package:greenhouse_app/widgets/info_card.dart';
+import 'package:greenhouse_app/widgets/main_temp_card.dart';
+import 'package:greenhouse_app/widgets/control_tile.dart';
+import 'package:greenhouse_app/widgets/alert_card.dart';
+import 'package:greenhouse_app/widgets/gradient_background.dart';
 import 'add_greenhouse_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -29,8 +29,13 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final greenhouseProvider = context.watch<GreenhouseProvider>();
+    final deviceProvider = context.watch<DeviceProvider>();
+    
     final greenhouses = greenhouseProvider.greenhouses;
-    final isLoading = greenhouseProvider.isLoading;
+    final devices = deviceProvider.devices;
+    
+    final isLoading = greenhouseProvider.isLoading || deviceProvider.isLoading;
+    final error = greenhouseProvider.error ?? deviceProvider.error;
 
     if (isLoading && greenhouses.isEmpty) {
       return const GradientBackground(
@@ -71,11 +76,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 },
                 child: const Text("Add Greenhouse", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              if (greenhouseProvider.error != null) ...[
+              if (error != null) ...[
                 const SizedBox(height: 20),
-                Text(greenhouseProvider.error!, style: const TextStyle(color: Colors.redAccent)),
+                Text(error, style: const TextStyle(color: Colors.redAccent)),
                 TextButton(
-                  onPressed: () => greenhouseProvider.fetchGreenhouses(),
+                  onPressed: () {
+                    greenhouseProvider.fetchGreenhouses();
+                    deviceProvider.fetchDevices();
+                  },
                   child: const Text("Retry", style: TextStyle(color: AppColors.neonGreen)),
                 )
               ]
@@ -90,7 +98,10 @@ class _DashboardPageState extends State<DashboardPage> {
     return GradientBackground(
       child: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => greenhouseProvider.fetchGreenhouses(),
+          onRefresh: () async {
+            await greenhouseProvider.fetchGreenhouses();
+            await deviceProvider.fetchDevices();
+          },
           color: AppColors.neonGreen,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
