@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants.dart';
-import '../../core/providers/auth_provider.dart';
+import 'package:greenhouse_app/core/constants.dart';
+import 'package:greenhouse_app/core/providers/auth_provider.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -37,7 +37,12 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await context.read<AuthProvider>().login(email, password);
     } catch (e) {
-      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      String message = e.toString().replaceFirst('Exception: ', '');
+      // Clean up common technical wrappers if they leaked through
+      if (message.contains('ClientException')) {
+        message = 'Cannot connect to server. Please check if the backend is running.';
+      }
+      setState(() => _errorMessage = message);
     }
   }
 

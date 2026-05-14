@@ -12,13 +12,19 @@ import 'pages/auth/login_page.dart';
 import 'core/models.dart';
 import 'core/storage.dart';
 import 'core/mqtt_service.dart';
-import 'core/providers/auth_provider.dart';
+import 'package:greenhouse_app/core/providers/auth_provider.dart';
+import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, GreenhouseProvider>(
+          create: (_) => GreenhouseProvider(),
+          update: (_, auth, greenhouse) =>
+              greenhouse!..updateToken(auth.token),
+        ),
       ],
       child: const GreenhouseApp(),
     ),

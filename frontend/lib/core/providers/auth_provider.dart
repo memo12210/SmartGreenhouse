@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/auth_models.dart';
-import '../services/auth_service.dart';
+import 'package:greenhouse_app/core/models/auth_models.dart';
+import 'package:greenhouse_app/core/services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();

@@ -1,11 +1,11 @@
 # Smart Greenhouse Monitoring System
 
-A comprehensive IoT solution for monitoring greenhouse environments, featuring real-time telemetry, automated data persistence, and secure multi-user access.
+A comprehensive IoT solution for monitoring greenhouse environments, featuring real-time telemetry, automated data persistence, and secure multi-user access with resource ownership.
 
 ## 🏗 Project Architecture
 
-- **`backend/`**: FastAPI REST API, PostgreSQL Database, and Alembic migrations. Containerized with Docker.
-- **`frontend/`**: Flutter mobile/web application with a modern neon-dark theme.
+- **`backend/`**: FastAPI REST API, PostgreSQL Database, and Alembic migrations. Features JWT authentication and multi-tenant resource ownership.
+- **`frontend/`**: Flutter mobile/web application with a modern neon-dark theme and secure state management.
 - **`embedded/`**: ESP32 firmware (C++/PlatformIO) for sensor data collection and MQTT transmission.
 - **`ml/`**: Machine Learning notebooks for predictive analytics and crop yield optimization.
 
@@ -76,10 +76,12 @@ The frontend provides the user interface for monitoring and management.
 - **Persistence**: Close the app and reopen it; you should remain logged in thanks to secure JWT storage.
 - **Logout**: Navigate to **Settings** and click **Log Out** to clear your session.
 
-### 2. Greenhouse Management
-- Go to the **Settings** page in the app.
-- Click **Add Greenhouse** to create a new monitoring location.
-- You can delete greenhouses from the same menu (this will also clean up associated devices).
+### 2. Greenhouse Management (Authenticated)
+- Go to the **Settings** page in the app or use the API docs.
+- **Add Greenhouse**: Create a new greenhouse profile (automatically linked to your user account).
+- **Ownership Isolation**: Verify that you only see greenhouses you created.
+- **Management**: Rename or delete greenhouses; all associated devices and telemetry will be cleaned up automatically.
+- **Error Handling**: Try performing these actions with the backend stopped to see the new user-friendly connection error messages.
 
 ### 3. Real-Time Telemetry (Requires MQTT Broker)
 - Ensure an MQTT broker (like Mosquitto) is running on port `1883`.

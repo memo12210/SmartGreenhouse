@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
+import 'package:provider/provider.dart';
 
 import '../core/constants.dart';
-import '../core/models.dart';
-import '../core/storage.dart';
+import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
 
 class AddGreenhousePage extends StatefulWidget {
   const AddGreenhousePage({super.key});
@@ -14,6 +13,7 @@ class AddGreenhousePage extends StatefulWidget {
 
 class _AddGreenhousePageState extends State<AddGreenhousePage> {
   final TextEditingController _nameController = TextEditingController();
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -21,17 +21,27 @@ class _AddGreenhousePageState extends State<AddGreenhousePage> {
     super.dispose();
   }
 
-  void _save() {
+  void _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
-    final id = 'gh_${const Uuid().v4().substring(0, 8)}';
-    final greenhouse = Greenhouse(id: id, name: name);
+    setState(() => _isSaving = true);
 
-    // persist and return created greenhouse
-    Storage.addGreenhouse(greenhouse).then((_) {
-      Navigator.pop(context, greenhouse);
-    });
+    try {
+      await context.read<GreenhouseProvider>().addGreenhouse(name);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -74,8 +84,10 @@ class _AddGreenhousePageState extends State<AddGreenhousePage> {
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: _save,
-                child: const Text('Save'),
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving 
+                  ? const CircularProgressIndicator(color: Colors.black)
+                  : const Text('Save'),
               ),
             ),
           ],

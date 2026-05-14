@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants.dart';
-import '../../core/providers/auth_provider.dart';
+import 'package:greenhouse_app/core/constants.dart';
+import 'package:greenhouse_app/core/providers/auth_provider.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
