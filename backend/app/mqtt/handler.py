@@ -79,3 +79,17 @@ def disconnect(client, packet, exc=None):
 @fast_mqtt.on_subscribe()
 def subscribe(client, mid, qos, properties):
     logger.info("Subscribed to telemetry topics")
+
+async def broadcast_discovery(user_id: str, mapping: dict):
+    """
+    Broadcast greenhouse mapping to devices for a specific user.
+    Topic: greenhouses/
+    Payload: {"user_id": "...", "mapping": {"gh_id": ["MAC1", "MAC2"]}}
+    """
+    payload = {
+        "user_id": str(user_id),
+        "mapping": mapping
+    }
+    logger.info(f"Broadcasting discovery for user {user_id}")
+    # fast_mqtt.publish is synchronous
+    fast_mqtt.publish("greenhouses/", json.dumps(payload), qos=1, retain=False)

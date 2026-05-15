@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.api import deps
-from app.crud import crud_greenhouse
+from app.crud import crud_greenhouse, crud_device
 from app.schemas import greenhouse as greenhouse_schema
 from app.models.user import User
+from app.mqtt.handler import broadcast_discovery
 
 router = APIRouter()
 
@@ -26,7 +27,7 @@ def read_greenhouses(
     return greenhouses
 
 @router.post("/", response_model=greenhouse_schema.Greenhouse)
-def create_greenhouse(
+async def create_greenhouse(
     *,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -38,6 +39,11 @@ def create_greenhouse(
     greenhouse = crud_greenhouse.create_with_owner(
         db, obj_in=greenhouse_in, owner_id=current_user.id
     )
+
+    # Broadcast discovery after creating greenhouse
+    mapping = crud_device.get_greenhouse_device_map_by_owner(db, owner_id=current_user.id)
+    await broadcast_discovery(user_id=current_user.id, mapping=mapping)
+
     return greenhouse
 
 @router.put("/{id}", response_model=greenhouse_schema.Greenhouse)

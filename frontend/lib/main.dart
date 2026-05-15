@@ -10,7 +10,6 @@ import 'package:greenhouse_app/pages/add_greenhouse_page.dart';
 import 'package:greenhouse_app/pages/scan_device_page.dart';
 import 'package:greenhouse_app/pages/auth/login_page.dart';
 import 'package:greenhouse_app/core/models.dart';
-import 'package:greenhouse_app/core/mqtt_service.dart';
 import 'package:greenhouse_app/core/providers/auth_provider.dart';
 import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
 import 'package:greenhouse_app/core/providers/device_provider.dart';
@@ -159,12 +158,6 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
                     );
 
                     if (result != null && context.mounted) {
-                      final userId = context.read<AuthProvider>().user?.id;
-                      final mapping = context.read<DeviceProvider>().getGreenhouseDeviceMap();
-                      if (userId != null) {
-                        await MqttService.publishGreenhouses(userId, mapping);
-                      }
-
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -334,12 +327,6 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
         greenhouseId: selected.id,
         name: name,
       );
-
-      final userId = context.read<AuthProvider>().user?.id;
-      final mapping = context.read<DeviceProvider>().getGreenhouseDeviceMap();
-      if (userId != null) {
-        await MqttService.publishGreenhouses(userId, mapping);
-      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

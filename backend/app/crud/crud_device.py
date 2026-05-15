@@ -71,3 +71,18 @@ def remove(db: Session, *, id: UUID) -> Device:
     db.delete(obj)
     db.commit()
     return obj
+
+def get_greenhouse_device_map_by_owner(db: Session, *, owner_id: UUID) -> dict:
+    """
+    Returns a dictionary mapping greenhouse IDs to a list of device MAC addresses
+    for a specific owner.
+    Example: {"gh_id_1": ["MAC1", "MAC2"], "gh_id_2": ["MAC3"]}
+    """
+    devices = get_multi_by_owner(db, owner_id=owner_id)
+    mapping = {}
+    for device in devices:
+        gh_id = str(device.greenhouse_id)
+        if gh_id not in mapping:
+            mapping[gh_id] = []
+        mapping[gh_id].append(device.mac_address)
+    return mapping

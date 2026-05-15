@@ -10,11 +10,11 @@ namespace Greenhouse::Constants {
     constexpr uint8_t DHT_PIN = 4;
     constexpr uint8_t MQ135_PIN = 34;
 
-    constexpr char WIFI_SSID[] = "";
-    constexpr char WIFI_PASSWORD[] = "";
+    constexpr char WIFI_SSID[] = "***REDACTED_WIFI_SSID***";
+    constexpr char WIFI_PASSWORD[] = "***REDACTED_WIFI_PASSWORD***";
 
-    constexpr char MQTT_SERVER[] = "";
-    constexpr char DEVICE_SECRET[] = "default_secret_change_me";
+    constexpr char MQTT_SERVER[] = "***REDACTED_LOCAL_IP***";
+    constexpr char DEVICE_SECRET[] = "secret";
 
     constexpr char MQTT_PROTOCOL_VER[] = "v1";
     constexpr char MQTT_ROOT_NAMESPACE[] = "gh";

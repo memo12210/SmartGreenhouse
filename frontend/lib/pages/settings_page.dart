@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:greenhouse_app/core/constants.dart';
 import 'package:greenhouse_app/core/models.dart';
-import 'package:greenhouse_app/core/mqtt_service.dart';
 import 'package:greenhouse_app/core/providers/auth_provider.dart';
 import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
 import 'package:greenhouse_app/core/providers/device_provider.dart';
@@ -21,40 +20,18 @@ class _SettingsPageState extends State<SettingsPage> {
   double maxTemp = 30.0;
   double minHumid = 45.0;
 
-  Map<String, bool> _deviceStatus = {};
-  final Map<String, StreamSubscription> _subscriptions = {};
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeStatusMonitoring();
-    });
   }
 
   @override
   void dispose() {
-    for (final sub in _subscriptions.values) {
-      sub.cancel();
-    }
     super.dispose();
   }
 
   void _initializeStatusMonitoring() {
-    final mqtt = MqttService();
-    final devices = context.read<DeviceProvider>().devices;
-    for (final device in devices) {
-      if (!_subscriptions.containsKey(device.macAddress)) {
-        final sub = mqtt.subscribeToStatus(device.greenhouseId, device.macAddress).listen((isOnline) {
-          if (mounted) {
-            setState(() {
-              _deviceStatus[device.macAddress] = isOnline;
-            });
-          }
-        });
-        _subscriptions[device.macAddress] = sub;
-      }
-    }
+    // MQTT logic removed.
   }
 
   Future<void> _confirmDeletion(Greenhouse greenhouse) async {
@@ -140,10 +117,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (confirmed == true && mounted) {
       try {
         await context.read<DeviceProvider>().deleteDevice(device.id);
-        _subscriptions[device.macAddress]?.cancel();
-        _subscriptions.remove(device.macAddress);
-        _deviceStatus.remove(device.macAddress);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -441,7 +415,7 @@ class _SettingsPageState extends State<SettingsPage> {
         (g) => g.id == device.greenhouseId, 
         orElse: () => Greenhouse(id: '', name: "Unknown Greenhouse")
       );
-      final isOnline = _deviceStatus[device.macAddress] ?? false;
+      final isOnline = device.isActive; // Use the isActive field from the database
       return _buildDeviceCard(device, "Assigned to: ${gh.name}", isOnline);
     }).toList();
   }

@@ -8,6 +8,7 @@ from app.crud import crud_device, crud_greenhouse, crud_telemetry
 from app.schemas import device as device_schema
 from app.schemas import telemetry as telemetry_schema
 from app.models.user import User
+from app.mqtt.handler import broadcast_discovery
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ def read_devices(
     return devices
 
 @router.post("/", response_model=device_schema.Device)
-def create_device(
+async def create_device(
     *,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -55,10 +56,15 @@ def create_device(
         )
 
     device = crud_device.create_with_owner(db, obj_in=device_in)
+
+    # Broadcast discovery after creating device
+    mapping = crud_device.get_greenhouse_device_map_by_owner(db, owner_id=current_user.id)
+    await broadcast_discovery(user_id=current_user.id, mapping=mapping)
+
     return device
 
 @router.post("/claim", response_model=device_schema.Device)
-def claim_device(
+async def claim_device(
     *,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -86,6 +92,11 @@ def claim_device(
         )
 
     device = crud_device.claim_device(db, obj_in=device_in)
+
+    # Broadcast discovery after claiming device
+    mapping = crud_device.get_greenhouse_device_map_by_owner(db, owner_id=current_user.id)
+    await broadcast_discovery(user_id=current_user.id, mapping=mapping)
+
     return device
 
 @router.get("/{id}", response_model=device_schema.Device)

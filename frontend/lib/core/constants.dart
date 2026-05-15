@@ -9,13 +9,6 @@ class AppColors {
   static const Color borderWhite = Color(0x1AFFFFFF);
 }
 
-class MqttConfig {
-  // Use 10.0.2.2 for Android emulator to connect to host machine's localhost.
-  static String get host => Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
-  static const int port = 1883;
-  static const String topic = 'greenhouses/';
-}
-
 class ApiConfig {
   static String get baseUrl => Platform.isAndroid ? 'http://10.0.2.2:8000/api/v1' : 'http://127.0.0.1:8000/api/v1';
 }

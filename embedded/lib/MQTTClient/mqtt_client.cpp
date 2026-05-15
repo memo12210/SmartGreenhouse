@@ -21,9 +21,9 @@ void MQTTClient::reconnect() {
 
         bool connected = false;
         if (_willTopic != nullptr) {
-            connected = _client.connect(_clientId, _willTopic, _willQos, _willRetained, _willMessage);
+            connected = _client.connect(_clientId, _username, _password, _willTopic, _willQos, _willRetained, _willMessage);
         } else {
-            connected = _client.connect(_clientId);
+            connected = _client.connect(_clientId, _username, _password);
         }
 
         if (connected) {
@@ -84,6 +84,11 @@ void MQTTClient::setWill(const char *topic, const char *payload, int qos, bool r
 
 void MQTTClient::setClientId(const char *clientId) {
     _clientId = clientId;
+}
+
+void MQTTClient::setCredentials(const char *username, const char *password) {
+    _username = username;
+    _password = password;
 }
 
 void MQTTClient::callback(char *topic, byte *payload, unsigned int length) {

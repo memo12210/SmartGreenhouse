@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:greenhouse_app/core/constants.dart';
 import 'package:greenhouse_app/core/models.dart';
-import 'package:greenhouse_app/core/mqtt_service.dart';
 import 'package:greenhouse_app/core/providers/greenhouse_provider.dart';
 import 'package:greenhouse_app/core/providers/device_provider.dart';
 import 'package:greenhouse_app/widgets/info_card.dart';

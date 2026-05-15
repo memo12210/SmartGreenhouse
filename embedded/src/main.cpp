@@ -19,6 +19,7 @@ Preferences preferences;
 
 String userId = "";
 String greenhouseId = "";
+String cmdPayload = "";
 String discoveryPayload = "";
 bool isDiscovered = false;
 
@@ -32,7 +33,7 @@ String getISO8601Time() {
     return String(buffer);
 }
 
-String getMqttTopic(const char* type) {
+String getMqttTopic(const char *type) {
     String mac = wifiManager.getMACAddress();
     // gh/v1/<user_id>/<greenhouse_id>/<device_mac>/<type>
     String topic = String(MQTT_ROOT_NAMESPACE) + "/" + MQTT_PROTOCOL_VER + "/";
@@ -97,7 +98,8 @@ void setup() {
 }
 
 void processDiscovery() {
-    if (discoveryPayload.length() == 0) return;
+    if (discoveryPayload.length() == 0)
+        return;
 
     LOG_INFO("Received discovery payload. Parsing...");
 
@@ -113,8 +115,8 @@ void processDiscovery() {
     String mac = wifiManager.getMACAddress();
     JsonObject root = doc.as<JsonObject>();
 
-    // Discovery format from frontend: {"user_id": "...", "mapping": {"greenhouse_id": [ "MAC1", "MAC2" ]}}
-    if (!root.containsKey("user_id") || !root.containsKey("mapping")) {
+    // Discovery format from backend: {"user_id": "...", "mapping": {"greenhouse_id": [ "MAC1", "MAC2" ]}}
+    if (!root["user_id"].is<String>() || !root["mapping"].is<JsonObject>()) {
         LOG_WARN("Discovery payload missing user_id or mapping.");
         discoveryPayload = "";
         return;
@@ -123,12 +125,12 @@ void processDiscovery() {
     userId = root["user_id"].as<String>();
     JsonObject mapping = root["mapping"].as<JsonObject>();
 
-    for (JsonPair kv : mapping) {
+    for (JsonPair kv: mapping) {
         String ghId = kv.key().c_str();
         JsonArray macs = kv.value().as<JsonArray>();
 
         bool found = false;
-        for (JsonVariant m : macs) {
+        for (JsonVariant m: macs) {
             if (m.as<String>() == mac) {
                 found = true;
                 break;
@@ -150,7 +152,7 @@ void processDiscovery() {
             mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
 
             // Subscribe to command topic
-            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str());
+            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str(), &cmdPayload);
             return;
         }
     }
@@ -178,14 +180,13 @@ void loop() {
         // Re-publish online status after reconnecting
         if (mqttClient.isConnected()) {
             mqttClient.publish(getMqttTopic(STATUS_TOPIC).c_str(), getStatusPayload(true).c_str(), true);
-            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str());
+            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str(), &cmdPayload);
         }
     }
 
     auto dhtReadings = dht.read();
 
     JsonDocument telemetry;
-    // Removed getISO8601Time() from here as the backend uses server-side timestamp
     telemetry["temperature"] = dhtReadings.temperatureC;
     telemetry["humidity"] = dhtReadings.humidity;
     telemetry["soil_moisture"] = 0.0; // TODO: Integrate soil moisture sensor
