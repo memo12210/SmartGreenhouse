@@ -14,9 +14,18 @@ namespace Greenhouse::Constants {
     constexpr char WIFI_PASSWORD[] = "";
 
     constexpr char MQTT_SERVER[] = "";
+    constexpr char DEVICE_SECRET[] = "default_secret_change_me";
+
+    constexpr char MQTT_PROTOCOL_VER[] = "v1";
+    constexpr char MQTT_ROOT_NAMESPACE[] = "gh";
 
     constexpr char DISCOVERY_TOPIC[] = "greenhouses/";
-    constexpr char TELEMETRY_TOPIC[] = "telemetry"; // Final part of hierarchical topic
+
+    // Message types
+    constexpr char TELEMETRY_TOPIC[] = "telemetry";
+    constexpr char STATUS_TOPIC[] = "status";
+    constexpr char CMD_TOPIC[] = "cmd";
+    constexpr char ALERT_TOPIC[] = "alert";
 
     constexpr char NTP_SERVER[] = "pool.ntp.org";
     constexpr long GMT_OFFSET_SEC = 3 * 3600; // GMT+3 in Turkey

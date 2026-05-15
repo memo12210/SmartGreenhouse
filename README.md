@@ -6,7 +6,7 @@ A comprehensive IoT solution for monitoring greenhouse environments, featuring r
 
 - **`backend/`**: FastAPI REST API, PostgreSQL Database, and Alembic migrations. Features JWT authentication and multi-tenant resource ownership.
 - **`frontend/`**: Flutter mobile/web application with a modern neon-dark theme and secure state management.
-- **`embedded/`**: ESP32 firmware (C++/PlatformIO) for sensor data collection and MQTT transmission.
+- **`embedded/`**: ESP32 firmware refactored for multi-user isolation, featuring authenticated MQTT and persistent identity storage.
 - **`ml/`**: Machine Learning notebooks for predictive analytics and crop yield optimization.
 
 ---

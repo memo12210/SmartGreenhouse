@@ -17,6 +17,7 @@ WiFiManager wifiManager;
 MQTTClient mqttClient(MQTT_SERVER);
 Preferences preferences;
 
+String userId = "";
 String greenhouseId = "";
 String discoveryPayload = "";
 bool isDiscovered = false;
@@ -31,11 +32,20 @@ String getISO8601Time() {
     return String(buffer);
 }
 
+String getMqttTopic(const char* type) {
+    String mac = wifiManager.getMACAddress();
+    // gh/v1/<user_id>/<greenhouse_id>/<device_mac>/<type>
+    String topic = String(MQTT_ROOT_NAMESPACE) + "/" + MQTT_PROTOCOL_VER + "/";
+    topic += userId + "/" + greenhouseId + "/" + mac + "/" + type;
+    return topic;
+}
+
 String getStatusPayload(bool online) {
-    String payload = "{";
-    payload += "\"online\": " + String(online ? "true" : "false") + ",";
-    payload += "\"timestamp\": \"" + getISO8601Time() + "\"";
-    payload += "}";
+    JsonDocument doc;
+    doc["online"] = online;
+    doc["timestamp"] = getISO8601Time();
+    String payload;
+    serializeJson(doc, payload);
     return payload;
 }
 
@@ -53,28 +63,31 @@ void setup() {
         configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
 
         preferences.begin("gh_system", false);
+        userId = preferences.getString("u_id", "");
         greenhouseId = preferences.getString("gh_id", "");
 
         String macAddress = wifiManager.getMACAddress();
         static String cId = "ESP32_" + macAddress;
         mqttClient.setClientId(cId.c_str());
 
+        // Use MAC as username and Secret as password
+        mqttClient.setCredentials(macAddress.c_str(), DEVICE_SECRET);
         mqttClient.begin();
 
-        if (greenhouseId.length() == 0) {
-            LOG_INFO("Greenhouse ID not found in NVS. Subscribing to %s for discovery...", DISCOVERY_TOPIC);
+        if (userId.length() == 0 || greenhouseId.length() == 0) {
+            LOG_INFO("Identity not found in NVS. Subscribing to %s for discovery...", DISCOVERY_TOPIC);
             mqttClient.subscribe(DISCOVERY_TOPIC, &discoveryPayload);
         } else {
-            LOG_INFO("Loaded saved Greenhouse ID from NVS: %s", greenhouseId.c_str());
+            LOG_INFO("Loaded saved identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
             isDiscovered = true;
 
-            String statusTopic = greenhouseId + "/" + macAddress + "/status";
-
-            // Static allocation for MQTTClient internal pointers
+            // Setup LWT (Last Will and Testament)
+            static String sTopic = getMqttTopic(STATUS_TOPIC);
             static String willMsg = getStatusPayload(false);
-            static String sTopic = statusTopic;
-
             mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
+
+            // Notify we are online
+            mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
         }
     } else {
         LOG_WARN("Failed to connect to WiFi");
@@ -100,37 +113,37 @@ void processDiscovery() {
     String mac = wifiManager.getMACAddress();
     JsonObject root = doc.as<JsonObject>();
 
-    for (JsonPair p : root) {
-        JsonArray devices = p.value().as<JsonArray>();
-        for (JsonVariant v : devices) {
-            if (v.as<String>() == mac) {
-                greenhouseId = String(p.key().c_str());
-                LOG_INFO("Discovered assigned Greenhouse ID: %s", greenhouseId.c_str());
+    // New discovery format: {"MAC": {"u_id": "...", "gh_id": "..."}}
+    if (root.containsKey(mac)) {
+        JsonObject data = root[mac].as<JsonObject>();
+        userId = data["u_id"].as<String>();
+        greenhouseId = data["gh_id"].as<String>();
 
-                preferences.putString("gh_id", greenhouseId);
-                isDiscovered = true;
+        LOG_INFO("Discovered identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
 
-                // Setup status topics after discovery
-                String statusTopic = greenhouseId + "/" + mac + "/status";
-                static String willMsg = getStatusPayload(false);
-                static String sTopic = statusTopic;
+        preferences.putString("u_id", userId);
+        preferences.putString("gh_id", greenhouseId);
+        isDiscovered = true;
 
-                mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
+        // Reset MQTT to apply new LWT topics
+        String sTopic = getMqttTopic(STATUS_TOPIC);
+        String willMsg = getStatusPayload(false);
+        mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
+        mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
 
-                // Reconnect to apply Will and publish Online
-                mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
-                return;
-            }
-        }
+        // Subscribe to command topic
+        mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str());
+    } else {
+        LOG_WARN("MAC address %s not found in discovery payload.", mac.c_str());
+        discoveryPayload = "";
     }
-
-    LOG_WARN("MAC address %s not found in discovery payload.", mac.c_str());
-    discoveryPayload = ""; // Wait for next update
 }
 
 void loop() {
-    if (!wifiManager.isConnected())
-        LOG_WARN("WiFi connection lost");
+    if (!wifiManager.isConnected()) {
+        LOG_WARN("WiFi connection lost. Reconnecting...");
+        return;
+    }
 
     mqttClient.loop();
 
@@ -140,27 +153,28 @@ void loop() {
         return;
     }
 
+    if (!mqttClient.isConnected()) {
+        LOG_WARN("MQTT disconnected. Attempting to reconnect...");
+        // Re-publish online status after reconnecting
+        if (mqttClient.isConnected()) {
+            mqttClient.publish(getMqttTopic(STATUS_TOPIC).c_str(), getStatusPayload(true).c_str(), true);
+            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str());
+        }
+    }
+
     auto dhtReadings = dht.read();
-    float temperature = dhtReadings.temperatureC;
-    float humidity = dhtReadings.humidity;
-    uint16_t light = 0;   // TODO: add real reading
-    int soilMoisture = 0; // TODO: add real reading
 
-    String timestamp = getISO8601Time();
-    String macAddress = wifiManager.getMACAddress();
+    JsonDocument telemetry;
+    telemetry["timestamp"] = getISO8601Time();
+    telemetry["temperature"] = serialized(String(dhtReadings.temperatureC, 1));
+    telemetry["humidity"] = serialized(String(dhtReadings.humidity, 1));
+    telemetry["soil_moisture"] = 0; // TODO
+    telemetry["light"] = 0;         // TODO
 
-    // Construct the JSON payload
-    String payload = "{";
-    payload += "\"timestamp\": \"" + timestamp + "\",";
-    payload += "\"temperature\": " + String(temperature, 1) + ",";
-    payload += "\"humidity\": " + String(humidity, 1) + ",";
-    payload += "\"soil_moisture\": " + String(soilMoisture) + ",";
-    payload += "\"light\": " + String(light);
-    payload += "}";
+    String payload;
+    serializeJson(telemetry, payload);
 
-    // Construct the topic greenhouse_id>/<microcontroller_id>/telemetry
-    String topic = greenhouseId + "/" + macAddress + "/" + TELEMETRY_TOPIC;
-
+    String topic = getMqttTopic(TELEMETRY_TOPIC);
     LOG_INFO("Publishing to %s: %s", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
