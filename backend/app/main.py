@@ -1,10 +1,21 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
 from app.api.endpoints import health, test_db, auth, greenhouses, devices
+from app.mqtt.handler import fast_mqtt
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Connect to MQTT
+    await fast_mqtt.mqtt_startup()
+    yield
+    # Shutdown: Disconnect from MQTT
+    await fast_mqtt.mqtt_shutdown()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 # Include routers
