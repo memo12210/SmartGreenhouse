@@ -41,7 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _startTelemetryUpdates() {
-    _telemetryTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _refreshData();
     });
   }
@@ -50,7 +50,12 @@ class _DashboardPageState extends State<DashboardPage> {
     final greenhouseProvider = context.read<GreenhouseProvider>();
     final deviceProvider = context.read<DeviceProvider>();
 
-    await greenhouseProvider.fetchGreenhouses();
+    // If we already have greenhouses, don't refetch the whole list to avoid UI flicker
+    if (greenhouseProvider.greenhouses.isEmpty) {
+      await greenhouseProvider.fetchGreenhouses();
+    }
+    
+    // Always refresh device list to catch online/offline status changes
     await deviceProvider.fetchDevices();
 
     if (greenhouseProvider.greenhouses.isNotEmpty) {

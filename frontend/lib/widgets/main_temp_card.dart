@@ -43,7 +43,14 @@ class MainTempCard extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(tempStr, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold)),
-              const Text("Target: 22°C - 26°C", style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+              Row(
+                children: [
+                  const Text("Target: 22°C - 26°C", style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+                  const SizedBox(width: 8),
+                  if (telemetry != null)
+                    const Icon(Icons.sync, color: AppColors.neonGreen, size: 12),
+                ],
+              ),
             ],
           ),
           Column(
@@ -54,9 +61,20 @@ class MainTempCard extends StatelessWidget {
                   color: AppColors.neonGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text("Status: ${telemetry != null ? 'Online' : '--'}", style: const TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Column(
+                  children: [
+                    Text("Status: ${telemetry != null ? 'Online' : '--'}", 
+                      style: const TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+              if (telemetry?.timestamp != null)
+                Text(
+                  "Last: ${telemetry!.timestamp!.hour.toString().padLeft(2, '0')}:${telemetry!.timestamp!.minute.toString().padLeft(2, '0')}:${telemetry!.timestamp!.second.toString().padLeft(2, '0')}",
+                  style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
+                ),
+              const SizedBox(height: 10),
               Stack(
                 alignment: Alignment.center,
                 children: [
