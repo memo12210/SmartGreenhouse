@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <Preferences.h>
 #include <constants.h>
 #include <dht_sensor.h>
 #include <ldr_reader.h>
@@ -15,7 +14,6 @@ using namespace Greenhouse::Constants;
 DHTSensor dht(DHT_PIN, DHTType::DHT22);
 WiFiManager wifiManager;
 MQTTClient mqttClient(MQTT_SERVER);
-Preferences preferences;
 
 String userId = "";
 String greenhouseId = "";
@@ -63,11 +61,7 @@ void setup() {
 
         configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
 
-        preferences.begin("gh_system", false);
-        userId = preferences.getString("u_id", "");
-        greenhouseId = preferences.getString("gh_id", "");
-
-        String macAddress = wifiManager.getMACAddress();
+        static String macAddress = wifiManager.getMACAddress();
         static String cId = "ESP32_" + macAddress;
         mqttClient.setClientId(cId.c_str());
 
@@ -75,21 +69,9 @@ void setup() {
         mqttClient.setCredentials(macAddress.c_str(), DEVICE_SECRET);
         mqttClient.begin();
 
-        if (userId.length() == 0 || greenhouseId.length() == 0) {
-            LOG_INFO("Identity not found in NVS. Subscribing to %s for discovery...", DISCOVERY_TOPIC);
-            mqttClient.subscribe(DISCOVERY_TOPIC, &discoveryPayload);
-        } else {
-            LOG_INFO("Loaded saved identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
-            isDiscovered = true;
-
-            // Setup LWT (Last Will and Testament)
-            static String sTopic = getMqttTopic(STATUS_TOPIC);
-            static String willMsg = getStatusPayload(false);
-            mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
-
-            // Notify we are online
-            mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
-        }
+        // Always start by subscribing to discovery, as we no longer store IDs in Preferences
+        LOG_INFO("Subscribing to %s for discovery...", DISCOVERY_TOPIC);
+        mqttClient.subscribe(DISCOVERY_TOPIC, &discoveryPayload);
     } else {
         LOG_WARN("Failed to connect to WiFi");
     }
@@ -122,7 +104,7 @@ void processDiscovery() {
         return;
     }
 
-    userId = root["user_id"].as<String>();
+    String tempUserId = root["user_id"].as<String>();
     JsonObject mapping = root["mapping"].as<JsonObject>();
 
     for (JsonPair kv: mapping) {
@@ -138,21 +120,23 @@ void processDiscovery() {
         }
 
         if (found) {
+            userId = tempUserId;
             greenhouseId = ghId;
             LOG_INFO("Discovered identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
 
-            preferences.putString("u_id", userId);
-            preferences.putString("gh_id", greenhouseId);
             isDiscovered = true;
 
-            // Reset MQTT to apply new LWT topics
-            String sTopic = getMqttTopic(STATUS_TOPIC);
-            String willMsg = getStatusPayload(false);
+            // Setup LWT (Last Will and Testament)
+            static String sTopic = getMqttTopic(STATUS_TOPIC);
+            static String willMsg = getStatusPayload(false);
             mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
+
+            // Notify we are online
             mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
 
             // Subscribe to command topic
-            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str(), &cmdPayload);
+            static String cmdTopic = getMqttTopic(CMD_TOPIC);
+            mqttClient.subscribe(cmdTopic.c_str(), &cmdPayload);
             return;
         }
     }

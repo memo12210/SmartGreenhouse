@@ -92,4 +92,4 @@ async def broadcast_discovery(user_id: str, mapping: dict):
     }
     logger.info(f"Broadcasting discovery for user {user_id}")
     # fast_mqtt.publish is synchronous
-    fast_mqtt.publish("greenhouses/", json.dumps(payload), qos=1, retain=False)
+    fast_mqtt.publish("greenhouses/", json.dumps(payload), qos=1, retain=True)
