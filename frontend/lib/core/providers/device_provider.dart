@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:greenhouse_app/core/models.dart';
 import 'package:greenhouse_app/core/services/device_service.dart';
+import 'package:greenhouse_app/core/services/telemetry_service.dart';
 
 class DeviceProvider extends ChangeNotifier {
   final DeviceService _service = DeviceService();
+  final TelemetryService _telemetryService = TelemetryService();
   String? _token;
   
   List<Device> _devices = [];
+  Map<String, Telemetry> _latestTelemetry = {};
   bool _isLoading = false;
   String? _error;
 
   List<Device> get devices => _devices;
+  Map<String, Telemetry> get latestTelemetry => _latestTelemetry;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -20,7 +24,21 @@ class DeviceProvider extends ChangeNotifier {
       fetchDevices();
     } else {
       _devices = [];
+      _latestTelemetry = {};
       notifyListeners();
+    }
+  }
+
+  Future<void> fetchLatestTelemetry(String deviceId) async {
+    if (_token == null) return;
+
+    try {
+      final telemetry = await _telemetryService.getLatestTelemetry(_token!, deviceId);
+      _latestTelemetry[deviceId] = telemetry;
+      notifyListeners();
+    } catch (e) {
+      // We don't necessarily want to set the global error for a single device telemetry failure
+      print('Error fetching telemetry for $deviceId: $e');
     }
   }
 

@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.api import deps
-from app.crud import crud_device, crud_greenhouse
+from app.crud import crud_device, crud_greenhouse, crud_telemetry
 from app.schemas import device as device_schema
+from app.schemas import telemetry as telemetry_schema
 from app.models.user import User
 
 router = APIRouter()
@@ -143,3 +144,28 @@ def delete_device(
         )
     device = crud_device.remove(db, id=id)
     return device
+
+@router.get("/{id}/telemetry/latest", response_model=telemetry_schema.Telemetry)
+def read_latest_telemetry(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    id: UUID,
+) -> Any:
+    """
+    Get the latest telemetry for a specific device (ownership verified).
+    """
+    device = crud_device.get_by_owner(db, owner_id=current_user.id, device_id=id)
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found or you don't have permission to access it",
+        )
+
+    telemetry = crud_telemetry.get_latest_by_device(db, device_id=id)
+    if not telemetry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No telemetry found for this device",
+        )
+    return telemetry

@@ -46,3 +46,4 @@ alembic/versions/*
 
 # Logs
 *.log
+/mosquitto/data/mosquitto.db

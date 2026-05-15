@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:greenhouse_app/core/providers/device_provider.dart';
 import '../core/constants.dart';
 
 class MainTempCard extends StatelessWidget {
-  const MainTempCard({super.key});
+  final String? deviceId;
+  const MainTempCard({super.key, this.deviceId});
 
   @override
   Widget build(BuildContext context) {
+    final deviceProvider = context.watch<DeviceProvider>();
+    final telemetry = deviceId != null ? deviceProvider.latestTelemetry[deviceId] : null;
+    final tempStr = telemetry?.temperature != null ? "${telemetry!.temperature!.toStringAsFixed(1)}°C" : "--°C";
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -35,8 +42,8 @@ class MainTempCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
-              const Text("--°C", style: TextStyle(fontSize: 64, fontWeight: FontWeight.bold)),
-              const Text("Target: --°C - --°C", style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+              Text(tempStr, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold)),
+              const Text("Target: 22°C - 26°C", style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
             ],
           ),
           Column(
@@ -47,19 +54,19 @@ class MainTempCard extends StatelessWidget {
                   color: AppColors.neonGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text("Status: --", style: TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text("Status: ${telemetry != null ? 'Online' : '--'}", style: const TextStyle(color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 20),
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 70, height: 70,
                     child: CircularProgressIndicator(
-                      value: 0, strokeWidth: 8, color: AppColors.neonGreen, backgroundColor: Colors.white10,
+                      value: telemetry?.temperature != null ? (telemetry!.temperature! / 50.0).clamp(0.0, 1.0) : 0, strokeWidth: 8, color: AppColors.neonGreen, backgroundColor: Colors.white10,
                     ),
                   ),
-                  const Text("--", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(telemetry != null ? "Optimal" : "--", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
             ],

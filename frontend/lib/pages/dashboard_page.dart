@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:greenhouse_app/core/constants.dart';
@@ -25,6 +26,42 @@ class _DashboardPageState extends State<DashboardPage> {
   bool isIrrigationActive = false;
   bool isLightsActive = false;
   bool isHeaterActive = false;
+
+  Timer? _telemetryTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTelemetryUpdates();
+  }
+
+  @override
+  void dispose() {
+    _telemetryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTelemetryUpdates() {
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    final greenhouseProvider = context.read<GreenhouseProvider>();
+    final deviceProvider = context.read<DeviceProvider>();
+
+    await greenhouseProvider.fetchGreenhouses();
+    await deviceProvider.fetchDevices();
+
+    if (greenhouseProvider.greenhouses.isNotEmpty) {
+      final activeGh = greenhouseProvider.greenhouses.first;
+      final devices = deviceProvider.getDevicesByGreenhouse(activeGh.id);
+      for (final device in devices) {
+        await deviceProvider.fetchLatestTelemetry(device.id);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,14 +131,14 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     final activeGreenhouse = greenhouses.first;
+    final activeDevices = deviceProvider.getDevicesByGreenhouse(activeGreenhouse.id);
+    final primaryDevice = activeDevices.isNotEmpty ? activeDevices.first : null;
+    final telemetry = primaryDevice != null ? deviceProvider.latestTelemetry[primaryDevice.id] : null;
 
     return GradientBackground(
       child: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            await greenhouseProvider.fetchGreenhouses();
-            await deviceProvider.fetchDevices();
-          },
+          onRefresh: _refreshData,
           color: AppColors.neonGreen,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -119,50 +156,50 @@ class _DashboardPageState extends State<DashboardPage> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 25),
-                const MainTempCard(),
+                MainTempCard(deviceId: primaryDevice?.id),
                 const SizedBox(height: 25),
-                const Row(
+                Row(
                   children: [
                     Expanded(
                       child: InfoCard(
                         title: "HUMIDITY",
-                        value: "--",
+                        value: telemetry?.humidity != null ? "${telemetry!.humidity!.toStringAsFixed(1)}%" : "--",
                         icon: Icons.water_drop_outlined,
-                        trend: "Waiting for data",
+                        trend: telemetry != null ? "Real-time" : "Waiting for data",
                         iconColor: Colors.blueAccent,
                       ),
                     ),
-                    SizedBox(width: 15),
+                    const SizedBox(width: 15),
                     Expanded(
                       child: InfoCard(
                         title: "LIGHT",
-                        value: "--",
+                        value: telemetry?.light != null ? "${telemetry!.light!.toStringAsFixed(0)} lux" : "--",
                         icon: Icons.wb_sunny_outlined,
-                        trend: "Waiting for data",
+                        trend: telemetry != null ? "Real-time" : "Waiting for data",
                         iconColor: Colors.orangeAccent,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 15),
-                const Row(
+                Row(
                   children: [
                     Expanded(
                       child: InfoCard(
                         title: "CO2 LEVELS",
-                        value: "--",
+                        value: "--", // Not implemented in backend Telemetry model yet
                         icon: Icons.cloud_outlined,
-                        trend: "Waiting for data",
+                        trend: "Not available",
                         iconColor: Colors.purpleAccent,
                       ),
                     ),
-                    SizedBox(width: 15),
+                    const SizedBox(width: 15),
                     Expanded(
                       child: InfoCard(
                         title: "SOIL MOISTURE",
-                        value: "--",
+                        value: telemetry?.soilMoisture != null ? "${telemetry!.soilMoisture!.toStringAsFixed(1)}%" : "--",
                         icon: Icons.grass,
-                        trend: "Waiting for data",
+                        trend: telemetry != null ? "Real-time" : "Waiting for data",
                         iconColor: Colors.brown,
                       ),
                     ),

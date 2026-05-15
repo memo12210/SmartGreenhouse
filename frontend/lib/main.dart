@@ -159,8 +159,11 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
                     );
 
                     if (result != null && context.mounted) {
+                      final userId = context.read<AuthProvider>().user?.id;
                       final mapping = context.read<DeviceProvider>().getGreenhouseDeviceMap();
-                      await MqttService.publishGreenhouses(mapping);
+                      if (userId != null) {
+                        await MqttService.publishGreenhouses(userId, mapping);
+                      }
 
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -331,6 +334,12 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
         greenhouseId: selected.id,
         name: name,
       );
+
+      final userId = context.read<AuthProvider>().user?.id;
+      final mapping = context.read<DeviceProvider>().getGreenhouseDeviceMap();
+      if (userId != null) {
+        await MqttService.publishGreenhouses(userId, mapping);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

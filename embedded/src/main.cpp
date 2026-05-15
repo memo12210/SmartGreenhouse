@@ -113,30 +113,50 @@ void processDiscovery() {
     String mac = wifiManager.getMACAddress();
     JsonObject root = doc.as<JsonObject>();
 
-    // New discovery format: {"MAC": {"u_id": "...", "gh_id": "..."}}
-    if (root.containsKey(mac)) {
-        JsonObject data = root[mac].as<JsonObject>();
-        userId = data["u_id"].as<String>();
-        greenhouseId = data["gh_id"].as<String>();
-
-        LOG_INFO("Discovered identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
-
-        preferences.putString("u_id", userId);
-        preferences.putString("gh_id", greenhouseId);
-        isDiscovered = true;
-
-        // Reset MQTT to apply new LWT topics
-        String sTopic = getMqttTopic(STATUS_TOPIC);
-        String willMsg = getStatusPayload(false);
-        mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
-        mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
-
-        // Subscribe to command topic
-        mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str());
-    } else {
-        LOG_WARN("MAC address %s not found in discovery payload.", mac.c_str());
+    // Discovery format from frontend: {"user_id": "...", "mapping": {"greenhouse_id": [ "MAC1", "MAC2" ]}}
+    if (!root.containsKey("user_id") || !root.containsKey("mapping")) {
+        LOG_WARN("Discovery payload missing user_id or mapping.");
         discoveryPayload = "";
+        return;
     }
+
+    userId = root["user_id"].as<String>();
+    JsonObject mapping = root["mapping"].as<JsonObject>();
+
+    for (JsonPair kv : mapping) {
+        String ghId = kv.key().c_str();
+        JsonArray macs = kv.value().as<JsonArray>();
+
+        bool found = false;
+        for (JsonVariant m : macs) {
+            if (m.as<String>() == mac) {
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            greenhouseId = ghId;
+            LOG_INFO("Discovered identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
+
+            preferences.putString("u_id", userId);
+            preferences.putString("gh_id", greenhouseId);
+            isDiscovered = true;
+
+            // Reset MQTT to apply new LWT topics
+            String sTopic = getMqttTopic(STATUS_TOPIC);
+            String willMsg = getStatusPayload(false);
+            mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
+            mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
+
+            // Subscribe to command topic
+            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str());
+            return;
+        }
+    }
+
+    LOG_WARN("MAC address %s not found in discovery payload.", mac.c_str());
+    discoveryPayload = "";
 }
 
 void loop() {
@@ -165,11 +185,11 @@ void loop() {
     auto dhtReadings = dht.read();
 
     JsonDocument telemetry;
-    telemetry["timestamp"] = getISO8601Time();
-    telemetry["temperature"] = serialized(String(dhtReadings.temperatureC, 1));
-    telemetry["humidity"] = serialized(String(dhtReadings.humidity, 1));
-    telemetry["soil_moisture"] = 0; // TODO
-    telemetry["light"] = 0;         // TODO
+    // Removed getISO8601Time() from here as the backend uses server-side timestamp
+    telemetry["temperature"] = dhtReadings.temperatureC;
+    telemetry["humidity"] = dhtReadings.humidity;
+    telemetry["soil_moisture"] = 0.0; // TODO: Integrate soil moisture sensor
+    telemetry["light"] = 0.0;         // TODO: Integrate light sensor
 
     String payload;
     serializeJson(telemetry, payload);

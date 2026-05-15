@@ -65,12 +65,16 @@ class MqttService {
     }
   }
 
-  static Future<void> publishGreenhouses(Map<String, List<String>> map) async {
+  static Future<void> publishGreenhouses(String userId, Map<String, List<String>> map) async {
     final service = MqttService();
     await service._ensureConnected();
     if (service._client?.connectionStatus?.state == MqttConnectionState.connected) {
+      final payload = {
+        'user_id': userId,
+        'mapping': map,
+      };
       final builder = MqttClientPayloadBuilder();
-      builder.addString(json.encode(map));
+      builder.addString(json.encode(payload));
       service._client!.publishMessage(MqttConfig.topic, MqttQos.atLeastOnce, builder.payload!);
       print('MQTT: Published update to ${MqttConfig.topic}');
       // allow short time for publish to complete
