@@ -1,25 +1,29 @@
-from typing import Optional
+import uuid
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict
-from uuid import UUID
-from datetime import datetime
 
-# Shared properties
+
 class GreenhouseBase(BaseModel):
-    name: Optional[str] = None
-
-# Properties to receive via API on creation
-class GreenhouseCreate(GreenhouseBase):
     name: str
+    location: Optional[str] = None
+    extra_metadata: Dict[str, Any] = {}
 
-# Properties to receive via API on update
-class GreenhouseUpdate(GreenhouseBase):
+
+class GreenhouseCreate(GreenhouseBase):
     pass
 
-# Properties to return via API
-class Greenhouse(GreenhouseBase):
-    id: UUID
+
+class GreenhouseUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    extra_metadata: Optional[Dict[str, Any]] = None
+
+
+class GreenhouseRead(BaseModel):
+    id: uuid.UUID
     name: str
-    owner_id: UUID
-    created_at: datetime
+    location: Optional[str] = None
+    extra_metadata: Dict[str, Any]
+    owner_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)

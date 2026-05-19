@@ -1,42 +1,58 @@
+from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import PostgresDsn, field_validator, ValidationInfo
-from typing import Any, Dict, Optional
+from pydantic import PostgresDsn, RedisDsn, field_validator, ValidationInfo
+
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Smart Greenhouse API"
+    PROJECT_NAME: str = "Smart Greenhouse Platform"
     API_V1_STR: str = "/api/v1"
 
+    # Security
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Database
     POSTGRES_SERVER: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    POSTGRES_PORT: str = "5432"
-    SQLALCHEMY_DATABASE_URI: Optional[PostgresDsn] = None
+    DATABASE_URL: Optional[PostgresDsn] = None
 
-    SECRET_KEY: str = "your-super-secret-key-change-it-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-
-    MQTT_BROKER_HOST: str = "localhost"
-    MQTT_BROKER_PORT: int = 1883
-    MQTT_USERNAME: Optional[str] = "backend_service"
-    MQTT_PASSWORD: Optional[str] = None
-    MQTT_KEEPALIVE: int = 60
-
-    @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
+    @field_validator("DATABASE_URL", mode="before")
     @classmethod
-    def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> Any:
+    def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> str:
         if isinstance(v, str):
             return v
-        return PostgresDsn.build(
-            scheme="postgresql",
+        return str(PostgresDsn.build(
+            scheme="postgresql+asyncpg",
             username=info.data.get("POSTGRES_USER"),
             password=info.data.get("POSTGRES_PASSWORD"),
             host=info.data.get("POSTGRES_SERVER"),
-            port=int(info.data.get("POSTGRES_PORT")),
             path=f"{info.data.get('POSTGRES_DB') or ''}",
-        )
+        ))
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
+    # Redis
+    REDIS_URL: RedisDsn
+
+    # MQTT
+    MQTT_HOST: str
+    MQTT_PORT: int = 1883
+    MQTT_USER: Optional[str] = None
+    MQTT_PASSWORD: Optional[str] = None
+    MQTT_CLIENT_ID: str = "greenhouse_backend"
+
+    # Observability
+    OTEL_SERVICE_NAME: str = "greenhouse-backend"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://otel-collector:4317"
+
+    # CORS
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=True, env_file_encoding="utf-8"
+    )
+
 
 settings = Settings()

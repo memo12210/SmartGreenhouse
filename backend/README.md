@@ -1,78 +1,82 @@
-# Smart Greenhouse Backend
+# Smart Greenhouse Monitoring Platform Backend
 
-Modular FastAPI backend with PostgreSQL, SQLAlchemy ORM, and JWT Authentication.
+Production-grade IoT backend for monitoring and managing smart greenhouses.
 
-## 🚀 Quick Start (Docker)
+## Tech Stack
 
-### 1. Build and Start Services
-This command builds the FastAPI image and starts the application along with the PostgreSQL database.
-```bash
-docker-compose up --build -d
+- **Framework**: FastAPI
+- **Database**: PostgreSQL + TimescaleDB (for telemetry)
+- **ORM**: Async SQLAlchemy 2.0
+- **Cache/Buffer**: Redis
+- **Messaging**: MQTT (Gmqtt)
+- **Observability**: OpenTelemetry, Prometheus, Grafana
+- **Security**: JWT (Access + Refresh tokens), RBAC
+- **Containerization**: Docker & Docker Compose
+
+## Features
+
+- **User Management**: Registration, Login, JWT Authentication, RBAC (admin, operator, viewer).
+- **Greenhouse Management**: Multi-greenhouse support, metadata tracking.
+- **Device Management**: Provisioning, status tracking (heartbeat), command queue.
+- **Telemetry**: High-volume ingestion, time-series data storage using TimescaleDB.
+- **MQTT Pipeline**: Fully decoupled ingestion and command publishing.
+- **Alerting**: Rule-based alert generation and acknowledgment (base implementation).
+
+## Project Structure
+
+```
+backend/
+├── app/
+│   ├── api/            # REST API routers and dependencies
+│   ├── core/           # Configuration, security, observability
+│   ├── domain/         # SQLAlchemy models (Entities)
+│   ├── infrastructure/ # Database, MQTT, Redis clients
+│   ├── repositories/   # Async Repository pattern
+│   ├── services/       # Business logic layer
+│   ├── schemas/        # Pydantic models (DTOs)
+│   ├── workers/        # Background tasks (MQTT subscriber)
+│   ├── tests/          # Pytest suite
+│   └── main.py         # Entry point
 ```
 
-### 2. Initialize Database Tables
-Run the initialization script to create the necessary tables (`users`, `greenhouses`, `devices`, `telemetry`) in PostgreSQL.
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Python 3.12+ (for local development)
+
+### Running with Docker
+
+1. Create a `.env` file from `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Start the stack:
+   ```bash
+   docker-compose up -d
+   ```
+3. The API will be available at `http://localhost:8000` and Swagger docs at `http://localhost:8000/docs`.
+
+### Database Migrations
+
 ```bash
-docker-compose run app python init_db.py
+# Apply migrations
+alembic upgrade head
+
+# Generate a new migration
+alembic revision --autogenerate -m "description"
 ```
 
-### 3. Verify Health
-Check these endpoints in your browser:
-- **API Health**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-- **Database Connection**: [http://localhost:8000/api/v1/test-db](http://localhost:8000/api/v1/test-db)
+## Security
 
----
+- Passwords are hashed using Argon2/Bcrypt.
+- JWT tokens are used for authentication.
+- Refresh token rotation is implemented to prevent token theft.
+- Role-Based Access Control (RBAC) ensures users only access what they are allowed to.
 
-## 🧪 Testing the Auth Flow (End-to-End)
+## Observability
 
-Open the **Interactive API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-### Step 1: Register
-1. Find `POST /api/v1/auth/register`.
-2. Click **Try it out**, enter an email and password.
-3. **Execute**. You should get a `200 OK` with user details.
-
-### Step 2: Login
-1. Find `POST /api/v1/auth/login/access-token`.
-2. Enter the same credentials in the form.
-3. **Execute**. Copy the `access_token` from the response.
-
-### Step 3: Authorize
-1. Click the green **Authorize** button at the top of the page.
-2. Paste the `access_token` and click **Authorize**.
-
-### Step 4: Access Protected Profile
-1. Find `GET /api/v1/auth/me`.
-2. Click **Try it out** -> **Execute**.
-3. You should see your user profile data.
-
----
-
-## 🛠 Development Commands
-
-### Database Migrations (Alembic)
-Whenever you modify models in `app/models/`:
-
-**Generate a new migration:**
-```bash
-docker-compose run app alembic revision --autogenerate -m "description of changes"
-```
-
-**Apply migrations:**
-```bash
-docker-compose run app alembic upgrade head
-```
-
-### Reset Environment
-To wipe the database and start fresh:
-```bash
-docker-compose down -v
-```
-
-## 📂 Project Structure
-- `app/api`: API endpoints and dependencies.
-- `app/core`: Configuration and security settings.
-- `app/crud`: Business logic and DB operations.
-- `app/models`: SQLAlchemy database models.
-- `app/schemas`: Pydantic data validation models.
-- `alembic/`: Database migration history.
+- **Metrics**: Available at `http://localhost:8000/metrics` (Prometheus format).
+- **Tracing**: OpenTelemetry traces are exported to the OTLP collector.
+- **Logs**: Structured JSON logging (via structlog).

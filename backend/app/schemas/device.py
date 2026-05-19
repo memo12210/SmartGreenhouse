@@ -1,33 +1,35 @@
-from typing import Optional
+import uuid
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict
-from uuid import UUID
-from datetime import datetime
+from app.domain.device import DeviceStatus
 
-# Shared properties
+
 class DeviceBase(BaseModel):
-    mac_address: Optional[str] = None
-    name: Optional[str] = None
+    name: str
+    serial_number: str
+    device_type: str
+    status: DeviceStatus = DeviceStatus.INACTIVE
+    firmware_version: Optional[str] = None
 
-# Properties to receive via API on creation
+
 class DeviceCreate(DeviceBase):
-    mac_address: str
-    greenhouse_id: UUID
+    greenhouse_id: uuid.UUID
 
-class DeviceClaim(BaseModel):
-    mac_address: str
-    secret: str
-    greenhouse_id: UUID
+
+class DeviceUpdate(BaseModel):
     name: Optional[str] = None
+    status: Optional[DeviceStatus] = None
+    firmware_version: Optional[str] = None
+    greenhouse_id: Optional[uuid.UUID] = None
 
-# Properties to receive via API on update
-class DeviceUpdate(DeviceBase):
-    pass
 
-# Properties to return via API
-class Device(DeviceBase):
-    id: UUID
-    mac_address: str
-    greenhouse_id: UUID
-    created_at: datetime
+class DeviceRead(DeviceBase):
+    id: uuid.UUID
+    greenhouse_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceCommandCreate(BaseModel):
+    command: str
+    payload: Dict[str, Any] = {}
