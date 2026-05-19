@@ -40,7 +40,7 @@ You should see `api`, `db`, `redis`, `mqtt`, `otel-collector`, and `prometheus` 
 The system uses Alembic for database migrations. The application container is pre-configured with the correct `PYTHONPATH` to ensure migrations run smoothly.
 
 ```bash
-# Apply migrations to create the initial schema
+# Apply migrations to create the initial schema and the new Alert Rules table
 docker-compose exec api alembic upgrade head
 ```
 
@@ -125,10 +125,25 @@ mosquitto_pub -h localhost -p 1883 \
 
 ## 6. Alerts & Notifications
 
-The system includes a fully functional Alerts module.
+The system includes a fully functional Alerts module with customizable thresholds.
 
-1.  **List Alerts**: Call `GET /api/v1/alerts/greenhouse/{greenhouse_id}` to see all alerts for your greenhouse.
-2.  **Acknowledge**: Call `POST /api/v1/alerts/{alert_id}/acknowledge` to mark an alert as resolved.
+### Step A: Create an Alert Rule
+1. Call `POST /api/v1/alerts/rules` with a threshold (e.g., Temperature > 30):
+    ```json
+    {
+      "device_id": "PASTE_DEVICE_ID_HERE",
+      "field": "temperature",
+      "operator": ">",
+      "threshold": 30.0,
+      "severity": "critical",
+      "message_template": "Danger! Greenhouse temperature is too high!"
+    }
+    ```
+
+### Step B: Trigger and List Alerts
+1.  **Simulate Violation**: Publish telemetry that exceeds the threshold (e.g., Temp 35).
+2.  **List Alerts**: Call `GET /api/v1/alerts/greenhouse/{greenhouse_id}` to see the generated alert.
+3.  **Acknowledge**: Call `POST /api/v1/alerts/{alert_id}/acknowledge` to mark an alert as resolved.
 
 ---
 

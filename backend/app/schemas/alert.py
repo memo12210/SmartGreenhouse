@@ -25,3 +25,32 @@ class AlertRead(AlertBase):
     acknowledged_by: Optional[uuid.UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AlertRuleBase(BaseModel):
+    field: str
+    operator: str
+    threshold: float
+    severity: AlertSeverity = AlertSeverity.WARNING
+    is_enabled: bool = True
+    message_template: Optional[str] = None
+
+
+class AlertRuleCreate(AlertRuleBase):
+    device_id: uuid.UUID
+
+
+class AlertRuleUpdate(BaseModel):
+    field: Optional[str] = None
+    operator: Optional[str] = None
+    threshold: Optional[float] = None
+    severity: Optional[AlertSeverity] = None
+    is_enabled: Optional[bool] = None
+    message_template: Optional[str] = None
+
+
+class AlertRuleRead(AlertRuleBase):
+    id: uuid.UUID
+    device_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)

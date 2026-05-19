@@ -23,8 +23,8 @@ class Alert(Base, BaseEntity):
     )
 
     alert_type: Mapped[str] = mapped_column(String(100), nullable=False) # e.g., "high_temp", "low_moisture"
-    severity: Mapped[AlertSeverity] = mapped_column(
-        SQLEnum(AlertSeverity), default=AlertSeverity.WARNING, nullable=False
+    severity: Mapped[str] = mapped_column(
+        String(20), default=AlertSeverity.WARNING, nullable=False
     )
     message: Mapped[str] = mapped_column(String(500), nullable=False)
     value: Mapped[float] = mapped_column(Float, nullable=True)
@@ -32,3 +32,19 @@ class Alert(Base, BaseEntity):
     is_acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
     acknowledged_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=True)
     extra_metadata: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class AlertRule(Base, BaseEntity):
+    __tablename__ = "alert_rules"
+
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("devices.id", ondelete="CASCADE"), nullable=False
+    )
+    field: Mapped[str] = mapped_column(String(50), nullable=False) # e.g., "temperature", "humidity"
+    operator: Mapped[str] = mapped_column(String(10), nullable=False) # e.g., ">", "<", ">=", "<="
+    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    severity: Mapped[str] = mapped_column(
+        String(20), default=AlertSeverity.WARNING, nullable=False
+    )
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    message_template: Mapped[str] = mapped_column(String(255), nullable=True)

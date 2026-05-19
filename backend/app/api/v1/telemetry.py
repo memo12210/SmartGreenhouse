@@ -31,7 +31,22 @@ async def ingest_telemetry(
     db: AsyncSession = Depends(deps.get_db),
 ):
     # This could be used for REST-based telemetry ingestion from some devices
-    service = TelemetryService(TelemetryRepository(db))
-    result = await service.ingest_telemetry(telemetry_in)
+    # We need to find the greenhouse_id to evaluate alerts
+    from app.repositories.device import DeviceRepository
+    device_repo = DeviceRepository(db)
+    device = await device_repo.get(telemetry_in.device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    from app.repositories.alert import AlertRepository, AlertRuleRepository
+    from app.services.alert import AlertService, AlertEngineService
+
+    alert_repo = AlertRepository(db)
+    alert_rule_repo = AlertRuleRepository(db)
+    alert_service = AlertService(alert_repo)
+    alert_engine = AlertEngineService(alert_service, alert_rule_repo, alert_repo)
+
+    service = TelemetryService(TelemetryRepository(db), alert_engine)
+    result = await service.ingest_telemetry(telemetry_in, greenhouse_id=device.greenhouse_id)
     await db.commit()
     return result

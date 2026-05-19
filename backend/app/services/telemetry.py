@@ -7,10 +7,11 @@ from app.schemas.telemetry import TelemetryCreate
 
 
 class TelemetryService:
-    def __init__(self, telemetry_repo: TelemetryRepository):
+    def __init__(self, telemetry_repo: TelemetryRepository, alert_engine=None):
         self.telemetry_repo = telemetry_repo
+        self.alert_engine = alert_engine
 
-    async def ingest_telemetry(self, telemetry_in: TelemetryCreate) -> Telemetry:
+    async def ingest_telemetry(self, telemetry_in: TelemetryCreate, greenhouse_id: Optional[uuid.UUID] = None) -> Telemetry:
         telemetry = Telemetry(
             device_id=telemetry_in.device_id,
             timestamp=telemetry_in.timestamp,
@@ -21,7 +22,12 @@ class TelemetryService:
             co2=telemetry_in.co2,
             battery_level=telemetry_in.battery_level
         )
-        return await self.telemetry_repo.create(telemetry)
+        created = await self.telemetry_repo.create(telemetry)
+
+        if self.alert_engine and greenhouse_id:
+            await self.alert_engine.evaluate_telemetry(created, greenhouse_id)
+
+        return created
 
     async def get_device_telemetry(
         self,
