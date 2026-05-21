@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+
 import '../../../shared/widgets/custom_bottom_nav_bar.dart';
 import 'dashboard_page.dart';
-import '../../analytics/presentation/analytics_page.dart';
-import '../../alerts/presentation/alerts_page.dart';
+import 'package:greenhouse_app/features/devices/presentation/device_page.dart';
+import 'package:greenhouse_app/features/insights/presentation/insights_page.dart';
+import 'package:greenhouse_app/features/alerts/presentation/alerts_page.dart';
 import '../../settings/presentation/settings_page.dart';
-
-import '../../greenhouse/presentation/add_greenhouse_page.dart';
 
 class MainNavigationWrapper extends StatefulWidget {
   const MainNavigationWrapper({super.key});
@@ -18,37 +17,30 @@ class MainNavigationWrapper extends StatefulWidget {
 class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const DashboardPage(),
-    const AnalyticsPage(),
-    const AlertsPage(),
-    const SettingsPage(),
-  ];
+  void _changeTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      DashboardPage(
+        onNavigateToDevices: () => _changeTab(1),
+      ),
+      const DevicesPage(),
+      const InsightsPage(),
+      const AlertsPage(),
+      const SettingsPage(),
+    ];
+
     return Scaffold(
       extendBody: true,
-      body: _pages[_currentIndex],
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.neonGreen,
-        shape: const CircleBorder(),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddGreenhousePage()),
-          );
-        },
-        child: const Icon(Icons.add, color: Colors.black, size: 32),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      body: pages[_currentIndex],
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _changeTab,
       ),
     );
   }

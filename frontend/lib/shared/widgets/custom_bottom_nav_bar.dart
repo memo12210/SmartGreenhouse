@@ -3,7 +3,7 @@ import '../../core/theme/app_colors.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
-  final Function(int) onTap;
+  final ValueChanged<int> onTap;
 
   const CustomBottomNavBar({
     super.key,
@@ -13,46 +13,123 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BottomAppBar(
-      color: AppColors.surfaceDark,
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      height: 70,
+    return Container(
+      height: 82,
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark.withOpacity(0.96),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: AppColors.neonGreen.withOpacity(0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _navItem(Icons.home_filled, "Home", 0),
-          _navItem(Icons.analytics_outlined, "Analytics", 1),
-          const SizedBox(width: 48), // Space for FAB
-          _navItem(Icons.notifications_none, "Alerts", 2),
-          _navItem(Icons.person_outline, "Profile", 3),
+          _NavItem(
+            icon: Icons.dashboard_rounded,
+            label: 'Home',
+            index: 0,
+            currentIndex: currentIndex,
+            onTap: onTap,
+          ),
+          _NavItem(
+            icon: Icons.sensors_rounded,
+            label: 'Devices',
+            index: 1,
+            currentIndex: currentIndex,
+            onTap: onTap,
+          ),
+          _NavItem(
+            icon: Icons.insights_rounded,
+            label: 'Insights',
+            index: 2,
+            currentIndex: currentIndex,
+            onTap: onTap,
+          ),
+          _NavItem(
+            icon: Icons.notifications_active_rounded,
+            label: 'Alerts',
+            index: 3,
+            currentIndex: currentIndex,
+            onTap: onTap,
+          ),
+          _NavItem(
+            icon: Icons.person_rounded,
+            label: 'Profile',
+            index: 4,
+            currentIndex: currentIndex,
+            onTap: onTap,
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _navItem(IconData icon, String label, int index) {
-    final bool isSelected = currentIndex == index;
-    return InkWell(
-      onTap: () => onTap(index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? AppColors.neonGreen : AppColors.textGrey,
-            size: 24,
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int index;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = currentIndex == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(index),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.neonGreen.withOpacity(0.14)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? AppColors.neonGreen : AppColors.textGrey,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 23,
+                color: isSelected ? AppColors.neonGreen : AppColors.textGrey,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppColors.neonGreen : AppColors.textGrey,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/data/turkey_locations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import 'greenhouse_controller.dart';
@@ -12,10 +14,27 @@ class AddGreenhousePage extends ConsumerStatefulWidget {
 }
 
 class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
+  final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
-  final _locationController = TextEditingController();
+  final _areaSizeController = TextEditingController();
+
   final List<_KVItem> _kvItems = [];
+
+  String _selectedCrop = 'Tomato';
+  String? _selectedCity;
+  String? _selectedDistrict;
   bool _isLoading = false;
+
+  final List<String> _cropTypes = const [
+    'Tomato',
+    'Cucumber',
+    'Pepper',
+    'Lettuce',
+    'Strawberry',
+    'Herbs',
+    'Other',
+  ];
 
   static const List<String> _numericKeys = [
     'days_to_maturity',
@@ -26,213 +45,947 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
     'fertilizer_K_kg_ha',
     'pest_severity',
     'soil_pH',
+    'area_size',
   ];
 
   @override
   void dispose() {
     _nameController.dispose();
-    _locationController.dispose();
+    _areaSizeController.dispose();
+
     for (final item in _kvItems) {
       item.keyController.dispose();
       item.valueController.dispose();
     }
+
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final name = _nameController.text.trim();
-    final location = _locationController.text.trim();
+    final city = _selectedCity;
+    final district = _selectedDistrict;
+    final areaSizeText = _areaSizeController.text.trim();
 
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a greenhouse name')),
-      );
-      return;
-    }
+    final locationParts = [
+      if (city != null) city,
+      if (district != null) district,
+    ];
 
-    final Map<String, dynamic> metadata = {};
+    final location = locationParts.join(' / ');
 
-    // include dynamic optional key/value pairs
+    final Map<String, dynamic> metadata = {
+      'crop': _selectedCrop,
+      if (city != null) 'city': city,
+      if (district != null) 'district': district,
+      if (areaSizeText.isNotEmpty)
+        'area_size':
+            double.tryParse(areaSizeText.replaceAll(',', '.')) ?? areaSizeText,
+    };
+
     for (final item in _kvItems) {
       final key = item.keyController.text.trim();
-      final val = item.valueController.text.trim();
-      if (key.isEmpty || val.isEmpty) continue;
+      final value = item.valueController.text.trim();
+
+      if (key.isEmpty || value.isEmpty) continue;
+
       if (_numericKeys.contains(key)) {
-        metadata[key] = double.tryParse(val) ?? val;
+        metadata[key] = double.tryParse(value.replaceAll(',', '.')) ?? value;
       } else {
-        metadata[key] = val;
+        metadata[key] = value;
       }
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       await ref.read(greenhousesProvider.notifier).addGreenhouse(
             name: name,
             location: location.isNotEmpty ? location : null,
             extraMetadata: metadata,
           );
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Greenhouse "$name" added successfully'),
-            backgroundColor: AppColors.neonGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: AppColors.errorRed,
-          ),
-        );
-      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Greenhouse "$name" added successfully.'),
+          backgroundColor: AppColors.neonGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add greenhouse: $error'),
+          backgroundColor: AppColors.errorRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
 
+  void _addOptionalAttribute() {
+    setState(() {
+      _kvItems.add(_KVItem());
+    });
+  }
+
+  void _removeOptionalAttribute(_KVItem item) {
+    setState(() {
+      _kvItems.remove(item);
+    });
+
+    item.keyController.dispose();
+    item.valueController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GradientScaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Add Greenhouse",
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Create New Profile",
-                style: Theme.of(context).textTheme.headlineMedium,
+    return FutureBuilder<Map<String, List<String>>>(
+      future: TurkeyLocations.load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const GradientScaffold(
+            body: SafeArea(
+              child: Center(
+                child: CircularProgressIndicator(),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                "Enter the details of your new greenhouse system",
-                style: TextStyle(color: AppColors.textGrey),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: "Greenhouse Name (e.g. Tomato Greenhouse)",
-                  prefixIcon: Icon(
-                    Icons.eco_outlined,
-                    color: AppColors.textGrey,
-                  ),
-                ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  hintText: "Location (e.g. North Sector)",
-                  prefixIcon: Icon(
-                    Icons.location_on_outlined,
-                    color: AppColors.textGrey,
-                  ),
-                ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: 40),
+            ),
+          );
+        }
 
-              // Dynamic optional attributes editor
-              _buildSectionHeader("Add Optional Attributes"),
-              const SizedBox(height: 8),
-              if (_kvItems.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                ..._kvItems.map((item) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Row(
+        if (snapshot.hasError || !snapshot.hasData) {
+          return GradientScaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Location data could not be loaded. Please check assets/data/turkey_locations.json and pubspec.yaml.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final locations = snapshot.data!;
+        final cities = locations.keys.toList();
+        final districts =
+            _selectedCity == null ? <String>[] : locations[_selectedCity] ?? [];
+
+        return GradientScaffold(
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              children: [
+                const _Header(),
+                const SizedBox(height: 24),
+                _IntroCard(crop: _selectedCrop),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceDark,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: AppColors.neonGreen.withOpacity(0.18),
+                    ),
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: item.keyController,
-                            decoration: const InputDecoration(
-                              hintText: 'Key',
+                        const _FormSectionTitle(
+                          title: 'Greenhouse Profile',
+                          subtitle:
+                              'Create a greenhouse profile for monitoring devices, alerts and insights.',
+                        ),
+                        const SizedBox(height: 20),
+                        _InputField(
+                          controller: _nameController,
+                          label: 'Greenhouse Name',
+                          hint: 'Tomato Greenhouse',
+                          icon: Icons.eco_rounded,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Greenhouse name is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _CropDropdown(
+                          value: _selectedCrop,
+                          items: _cropTypes,
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _selectedCrop = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        const _FormSectionTitle(
+                          title: 'Location',
+                          subtitle:
+                              'Select a real city and district. Free text input is disabled to keep location data clean.',
+                        ),
+                        const SizedBox(height: 20),
+                        _LocationDropdowns(
+                          cities: cities,
+                          districts: districts,
+                          selectedCity: _selectedCity,
+                          selectedDistrict: _selectedDistrict,
+                          onCityChanged: (value) {
+                            setState(() {
+                              _selectedCity = value;
+                              _selectedDistrict = null;
+                            });
+                          },
+                          onDistrictChanged: (value) {
+                            setState(() {
+                              _selectedDistrict = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _InputField(
+                          controller: _areaSizeController,
+                          label: 'Area Size',
+                          hint: '120',
+                          icon: Icons.square_foot_rounded,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          suffixText: 'm²',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return null;
+                            }
+
+                            final parsed = double.tryParse(
+                              value.trim().replaceAll(',', '.'),
+                            );
+
+                            if (parsed == null || parsed <= 0) {
+                              return 'Enter a valid area size';
+                            }
+
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        const _FormSectionTitle(
+                          title: 'Optional Attributes',
+                          subtitle:
+                              'Add custom metadata such as soil type, irrigation method or crop variety.',
+                        ),
+                        const SizedBox(height: 16),
+                        if (_kvItems.isEmpty)
+                          const _OptionalEmptyCard()
+                        else
+                          ..._kvItems.map(
+                            (item) => _OptionalAttributeRow(
+                              item: item,
+                              onRemove: () => _removeOptionalAttribute(item),
                             ),
                           ),
+                        const SizedBox(height: 12),
+                        _OutlineActionButton(
+                          icon: Icons.add_rounded,
+                          text: 'Add Attribute',
+                          onTap: _addOptionalAttribute,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 3,
-                          child: TextField(
-                            controller: item.valueController,
-                            decoration: const InputDecoration(
-                              hintText: 'Value',
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _submit,
+                            icon: _isLoading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.black,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_rounded),
+                            label: Text(
+                              _isLoading
+                                  ? 'Saving Greenhouse...'
+                                  : 'Save Greenhouse',
                             ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _kvItems.remove(item)),
-                          icon: const Icon(
-                            Icons.delete,
-                            color: AppColors.errorRed,
                           ),
                         ),
                       ],
                     ),
-                  );
-                }),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const _InfoCard(),
               ],
-              TextButton.icon(
-                onPressed: () => setState(() => _kvItems.add(_KVItem())),
-                icon: const Icon(Icons.add),
-                label: const Text('Add attribute'),
-              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submit,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black,
-                        ),
-                      )
-                    : const Text("Add Greenhouse"),
+class _LocationDropdowns extends StatelessWidget {
+  final List<String> cities;
+  final List<String> districts;
+  final String? selectedCity;
+  final String? selectedDistrict;
+  final ValueChanged<String?> onCityChanged;
+  final ValueChanged<String?> onDistrictChanged;
+
+  const _LocationDropdowns({
+    required this.cities,
+    required this.districts,
+    required this.selectedCity,
+    required this.selectedDistrict,
+    required this.onCityChanged,
+    required this.onDistrictChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= 390;
+
+    if (!isWide) {
+      return Column(
+        children: [
+          _CityDropdown(
+            value: selectedCity,
+            cities: cities,
+            onChanged: onCityChanged,
+          ),
+          const SizedBox(height: 14),
+          _DistrictDropdown(
+            value: selectedDistrict,
+            districts: districts,
+            enabled: selectedCity != null,
+            onChanged: onDistrictChanged,
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _CityDropdown(
+            value: selectedCity,
+            cities: cities,
+            onChanged: onCityChanged,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _DistrictDropdown(
+            value: selectedDistrict,
+            districts: districts,
+            enabled: selectedCity != null,
+            onChanged: onDistrictChanged,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CityDropdown extends StatelessWidget {
+  final String? value;
+  final List<String> cities;
+  final ValueChanged<String?> onChanged;
+
+  const _CityDropdown({
+    required this.value,
+    required this.cities,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      items: cities
+          .map(
+            (city) => DropdownMenuItem<String>(
+              value: city,
+              child: Text(
+                city,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 20),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'City is required';
+        }
+        return null;
+      },
+      dropdownColor: AppColors.surfaceDark,
+      style: const TextStyle(color: Colors.white),
+      decoration: _dropdownDecoration(
+        label: 'City',
+        icon: Icons.location_city_rounded,
+      ),
+    );
+  }
+}
+
+class _DistrictDropdown extends StatelessWidget {
+  final String? value;
+  final List<String> districts;
+  final bool enabled;
+  final ValueChanged<String?> onChanged;
+
+  const _DistrictDropdown({
+    required this.value,
+    required this.districts,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      items: districts
+          .map(
+            (district) => DropdownMenuItem<String>(
+              value: district,
+              child: Text(
+                district,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: enabled ? onChanged : null,
+      validator: (value) {
+        if (!enabled) {
+          return 'Select city';
+        }
+
+        if (value == null || value.isEmpty) {
+          return 'District required';
+        }
+
+        return null;
+      },
+      dropdownColor: AppColors.surfaceDark,
+      style: const TextStyle(color: Colors.white),
+      decoration: _dropdownDecoration(
+        label: 'District',
+        icon: Icons.map_rounded,
+      ),
+    );
+  }
+}
+
+InputDecoration _dropdownDecoration({
+  required String label,
+  required IconData icon,
+}) {
+  return InputDecoration(
+    labelText: label,
+    prefixIcon: Icon(
+      icon,
+      color: AppColors.neonGreen,
+    ),
+    filled: true,
+    fillColor: Colors.black.withOpacity(0.16),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(
+        color: AppColors.neonGreen.withOpacity(0.14),
+      ),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(
+        color: AppColors.neonGreen.withOpacity(0.14),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(
+        color: AppColors.neonGreen,
+      ),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(
+        color: Colors.redAccent,
+      ),
+    ),
+  );
+}
+
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Material(
+          color: AppColors.surfaceDark,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => Navigator.pop(context),
+            child: const SizedBox(
+              width: 46,
+              height: 46,
+              child: Icon(
+                Icons.arrow_back_rounded,
+                color: AppColors.neonGreen,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Greenhouse Setup',
+                style: TextStyle(
+                  color: AppColors.textGrey,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Add Greenhouse',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IntroCard extends StatelessWidget {
+  final String crop;
+
+  const _IntroCard({
+    required this.crop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: AppColors.neonGreen.withOpacity(0.22),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.neonGreen.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: AppColors.neonGreen.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.energy_savings_leaf_rounded,
+              color: AppColors.neonGreen,
+              size: 34,
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Smart Greenhouse Profile',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  'Current crop type: $crop. This data can improve future recommendations and alert rules.',
+                  style: const TextStyle(
+                    color: AppColors.textGrey,
+                    height: 1.4,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FormSectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _FormSectionTitle({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: AppColors.textGrey,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InputField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final String? suffixText;
+  final TextInputType? keyboardType;
+  final String? Function(String?) validator;
+
+  const _InputField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.validator,
+    this.suffixText,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        suffixText: suffixText,
+        prefixIcon: Icon(
+          icon,
+          color: AppColors.neonGreen,
+        ),
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(
+            color: AppColors.neonGreen.withOpacity(0.14),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(
+            color: AppColors.neonGreen.withOpacity(0.14),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(
+            color: AppColors.neonGreen,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(
+            color: Colors.redAccent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CropDropdown extends StatelessWidget {
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const _CropDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      items: items
+          .map(
+            (crop) => DropdownMenuItem<String>(
+              value: crop,
+              child: Text(crop),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+      dropdownColor: AppColors.surfaceDark,
+      style: const TextStyle(color: Colors.white),
+      decoration: _dropdownDecoration(
+        label: 'Crop Type',
+        icon: Icons.spa_rounded,
+      ),
+    );
+  }
+}
+
+class _OptionalAttributeRow extends StatelessWidget {
+  final _KVItem item;
+  final VoidCallback onRemove;
+
+  const _OptionalAttributeRow({
+    required this.item,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: item.keyController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Key',
+                filled: true,
+                fillColor: Colors.black.withOpacity(0.16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: item.valueController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Value',
+                filled: true,
+                fillColor: Colors.black.withOpacity(0.16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.redAccent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionalEmptyCard extends StatelessWidget {
+  const _OptionalEmptyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.neonGreen.withOpacity(0.1),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.textGrey,
+            size: 21,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No optional attributes added. You can add custom metadata if needed.',
+              style: TextStyle(
+                color: AppColors.textGrey,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OutlineActionButton extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+
+  const _OutlineActionButton({
+    required this.icon,
+    required this.text,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withOpacity(0.14),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.neonGreen.withOpacity(0.15),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: AppColors.neonGreen,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                text,
+                style: const TextStyle(
+                  color: AppColors.neonGreen,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: AppColors.textGrey,
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 1.1,
+class _InfoCard extends StatelessWidget {
+  const _InfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.neonGreen.withOpacity(0.12),
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.tips_and_updates_rounded,
+            color: AppColors.neonGreen,
+          ),
+          SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Greenhouse metadata such as crop type, location and area size can be used later for AI-supported recommendations, alert rules and reporting.',
+              style: TextStyle(
+                color: AppColors.textGrey,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

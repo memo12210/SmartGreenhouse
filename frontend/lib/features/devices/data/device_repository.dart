@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/device.dart';
+
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_provider.dart';
+import '../domain/device.dart';
 
 final deviceRepositoryProvider = Provider<DeviceRepository>((ref) {
   return DeviceRepository(ref.read(dioProvider));
@@ -14,24 +15,39 @@ class DeviceRepository {
   DeviceRepository(this._dio);
 
   Future<List<Device>> getDevices(String greenhouseId) async {
-    final response = await _dio.get(ApiEndpoints.greenhouseDevices(greenhouseId));
-    return (response.data as List).map((e) => Device.fromJson(e)).toList();
+    final response = await _dio.get(
+      ApiEndpoints.greenhouseDevices(greenhouseId),
+    );
+
+    return (response.data as List)
+        .map((item) => Device.fromJson(item))
+        .toList();
   }
 
-  Future<Device> claimDevice({
-    required String macAddress,
-    required String secret,
+  Future<Device> registerDevice({
+    required String name,
+    required String serialNumber,
+    required String deviceType,
+    required String status,
+    required String firmwareVersion,
     required String greenhouseId,
-    String? name,
   }) async {
     final response = await _dio.post(
-      ApiEndpoints.claimDevice(macAddress),
+      ApiEndpoints.devices,
       data: {
-        'secret': secret,
-        'greenhouse_id': greenhouseId,
         'name': name,
+        'serial_number': serialNumber,
+        'device_type': deviceType,
+        'status': status,
+        'firmware_version': firmwareVersion,
+        'greenhouse_id': greenhouseId,
       },
     );
+
     return Device.fromJson(response.data);
+  }
+
+  Future<void> deleteDevice(String deviceId) async {
+    await _dio.delete('${ApiEndpoints.devices}$deviceId');
   }
 }

@@ -47,7 +47,7 @@ class ControlTile extends StatelessWidget {
                 child: Switch(
                   value: isActive,
                   onChanged: onChanged,
-                  activeThumbColor: AppColors.neonGreen,
+                  activeColor: AppColors.neonGreen,
                   activeTrackColor: AppColors.neonGreen.withValues(alpha: 0.2),
                   inactiveThumbColor: AppColors.textGrey,
                   inactiveTrackColor: Colors.white.withValues(alpha: 0.05),
