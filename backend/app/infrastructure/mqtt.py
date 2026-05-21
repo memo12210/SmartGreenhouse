@@ -69,12 +69,12 @@ class MQTTService:
         if self.connected:
             self.client.subscribe(topic)
 
-    async def publish(self, topic: str, payload: Any, qos: int = 1):
+    async def publish(self, topic: str, payload: Any, qos: int = 1, retain: bool = False):
         if not self.connected:
             logger.error(f"Cannot publish to {topic}, MQTT not connected")
             return
 
         message = json.dumps(payload)
-        self.client.publish(topic, message, qos=qos)
+        self.client.publish(topic, message, qos=qos, retain=retain)
 
 mqtt_service = MQTTService()

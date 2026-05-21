@@ -1,187 +1,106 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <constants.h>
-#include <dht_sensor.h>
-#include <ldr_reader.h>
-#include <log.h>
-#include <mqtt_client.h>
-#include <time.h>
-#include <wifi_manager.h>
+#include "log.h"
+#include "config_manager.h"
+#include "wifi_provider.h"
+#include "mqtt_provider.h"
+#include "system_context.h"
+#include "sensor_manager.h"
+#include "dht_sensor_impl.h"
+#include "ldr_sensor_impl.h"
+#include "mq135_sensor_impl.h"
+#include "discovery_service.h"
+#include "constants.h"
 
-using namespace Greenhouse::Sensors;
-using namespace Greenhouse::Constants;
+using namespace Greenhouse;
 
-DHTSensor dht(DHT_PIN, DHTType::DHT22);
-WiFiManager wifiManager;
-MQTTClient mqttClient(MQTT_SERVER);
-
-String userId = "";
-String greenhouseId = "";
-String cmdPayload = "";
-String discoveryPayload = "";
-bool isDiscovered = false;
-
-String getISO8601Time() {
-    tm timeInfo;
-    if (!getLocalTime(&timeInfo)) {
-        return "2000-01-01T14:20:31Z"; // fallback value
-    }
-    char buffer[25];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &timeInfo);
-    return String(buffer);
-}
-
-String getMqttTopic(const char *type) {
-    String mac = wifiManager.getMACAddress();
-    // gh/v1/<user_id>/<greenhouse_id>/<device_mac>/<type>
-    String topic = String(MQTT_ROOT_NAMESPACE) + "/" + MQTT_PROTOCOL_VER + "/";
-    topic += userId + "/" + greenhouseId + "/" + mac + "/" + type;
-    return topic;
-}
-
-String getStatusPayload(bool online) {
-    JsonDocument doc;
-    doc["online"] = online;
-    doc["timestamp"] = getISO8601Time();
-    String payload;
-    serializeJson(doc, payload);
-    return payload;
-}
+// Global Instances
+DHTSensorImpl dhtSensor(Constants::DHT_PIN, 22); // DHT22
+LDRSensorImpl ldrSensor(32); // Using GPIO 32 for LDR
+MQ135SensorImpl mq135Sensor(Constants::MQ135_PIN);
 
 void setup() {
-    Serial.begin(MONITOR_SPEED);
+    Serial.begin(115200);
     Log::begin(Serial, Log::Level::DEBUG);
+    LOG_INFO("Smart Greenhouse Firmware Starting...");
 
-    dht.begin();
-
-    wifiManager.begin(WIFI_SSID, WIFI_PASSWORD);
-
-    if (wifiManager.isConnected()) {
-        LOG_INFO("WiFi connected successfully. IP: %s", wifiManager.getIPAddress().c_str());
-
-        configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-
-        static String macAddress = wifiManager.getMACAddress();
-        static String cId = "ESP32_" + macAddress;
-        mqttClient.setClientId(cId.c_str());
-
-        // Use MAC as username and Secret as password
-        mqttClient.setCredentials(macAddress.c_str(), DEVICE_SECRET);
-        mqttClient.begin();
-
-        // Always start by subscribing to discovery, as we no longer store IDs in Preferences
-        LOG_INFO("Subscribing to %s for discovery...", DISCOVERY_TOPIC);
-        mqttClient.subscribe(DISCOVERY_TOPIC, &discoveryPayload);
-    } else {
-        LOG_WARN("Failed to connect to WiFi");
+    // Initialize Config
+    if (!ConfigManager::getInstance().begin()) {
+        LOG_ERROR("Failed to initialize ConfigManager!");
     }
 
-    LOG_INFO("System initialized.");
-}
-
-void processDiscovery() {
-    if (discoveryPayload.length() == 0)
-        return;
-
-    LOG_INFO("Received discovery payload. Parsing...");
-
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, discoveryPayload);
-
-    if (error) {
-        LOG_ERROR("Discovery JSON parsing failed: %s", error.c_str());
-        discoveryPayload = "";
-        return;
+    // Load defaults if needed (for demo/development)
+    // In production, these would be provisioned via BLE or AP Mode
+    if (ConfigManager::getInstance().getWiFiSSID().length() == 0) {
+        LOG_INFO("Provisioning default WiFi credentials...");
+        ConfigManager::getInstance().setWiFiCredentials(Constants::WIFI_SSID, Constants::WIFI_PASSWORD);
     }
 
-    String mac = wifiManager.getMACAddress();
-    JsonObject root = doc.as<JsonObject>();
-
-    // Discovery format from backend: {"user_id": "...", "mapping": {"greenhouse_id": [ "MAC1", "MAC2" ]}}
-    if (!root["user_id"].is<String>() || !root["mapping"].is<JsonObject>()) {
-        LOG_WARN("Discovery payload missing user_id or mapping.");
-        discoveryPayload = "";
-        return;
+    if (ConfigManager::getInstance().getMQTTServer().length() == 0) {
+        LOG_INFO("Provisioning default MQTT configuration...");
+        ConfigManager::getInstance().setMQTTConfig(Constants::MQTT_SERVER, 1883);
     }
 
-    String tempUserId = root["user_id"].as<String>();
-    JsonObject mapping = root["mapping"].as<JsonObject>();
+    // Configure Time synchronization (required for TLS)
+    configTime(Constants::GMT_OFFSET_SEC, Constants::DAYLIGHT_OFFSET_SEC, Constants::NTP_SERVER);
 
-    for (JsonPair kv: mapping) {
-        String ghId = kv.key().c_str();
-        JsonArray macs = kv.value().as<JsonArray>();
+    // Initialize Components
+    WiFiProvider::getInstance().begin();
+    MQTTProvider::getInstance().begin();
 
-        bool found = false;
-        for (JsonVariant m: macs) {
-            if (m.as<String>() == mac) {
-                found = true;
-                break;
-            }
-        }
+    MQTTProvider::getInstance().setCallback([](const char* topic, uint8_t* payload, unsigned int length) {
+        DiscoveryService::getInstance().handleDiscoveryMessage(topic, payload, length);
+    });
 
-        if (found) {
-            userId = tempUserId;
-            greenhouseId = ghId;
-            LOG_INFO("Discovered identity. User: %s, GH: %s", userId.c_str(), greenhouseId.c_str());
+    // Setup Sensors
+    SensorManager::getInstance().addSensor(&dhtSensor);
+    SensorManager::getInstance().addSensor(&ldrSensor);
+    SensorManager::getInstance().addSensor(&mq135Sensor);
+    SensorManager::getInstance().begin(Constants::DELAY_MS);
 
-            isDiscovered = true;
-
-            // Setup LWT (Last Will and Testament)
-            static String sTopic = getMqttTopic(STATUS_TOPIC);
-            static String willMsg = getStatusPayload(false);
-            mqttClient.setWill(sTopic.c_str(), willMsg.c_str(), 1, true);
-
-            // Notify we are online
-            mqttClient.publish(sTopic.c_str(), getStatusPayload(true).c_str(), true);
-
-            // Subscribe to command topic
-            static String cmdTopic = getMqttTopic(CMD_TOPIC);
-            mqttClient.subscribe(cmdTopic.c_str(), &cmdPayload);
-            return;
-        }
-    }
-
-    LOG_WARN("MAC address %s not found in discovery payload.", mac.c_str());
-    discoveryPayload = "";
+    LOG_INFO("Initialization complete. Entering state machine loop.");
 }
 
 void loop() {
-    if (!wifiManager.isConnected()) {
-        LOG_WARN("WiFi connection lost. Reconnecting...");
-        return;
+    static SystemState lastState = SystemState::STATE_BOOT;
+    SystemState currentState = SystemContext::getInstance().getState();
+    bool stateChanged = (currentState != lastState);
+    lastState = currentState;
+
+    switch (currentState) {
+        case SystemState::STATE_BOOT:
+            // Handled by setup and events
+            break;
+
+        case SystemState::STATE_WIFI_CONNECTING:
+            // WiFiProvider handles reconnection via events
+            break;
+
+        case SystemState::STATE_MQTT_CONNECTING:
+            MQTTProvider::getInstance().loop();
+            break;
+
+        case SystemState::STATE_DISCOVERY:
+            MQTTProvider::getInstance().loop();
+            if (stateChanged) {
+                DiscoveryService::getInstance().start();
+            }
+            break;
+
+        case SystemState::STATE_OPERATIONAL:
+            MQTTProvider::getInstance().loop();
+            // SensorManager runs in its own task
+            break;
+
+        case SystemState::STATE_ERROR:
+            LOG_ERROR("System in ERROR state. Restarting in 10s...");
+            delay(10000);
+            ESP.restart();
+            break;
+
+        default:
+            break;
     }
 
-    mqttClient.loop();
-
-    if (!isDiscovered) {
-        processDiscovery();
-        delay(1000);
-        return;
-    }
-
-    if (!mqttClient.isConnected()) {
-        LOG_WARN("MQTT disconnected. Attempting to reconnect...");
-        // Re-publish online status after reconnecting
-        if (mqttClient.isConnected()) {
-            mqttClient.publish(getMqttTopic(STATUS_TOPIC).c_str(), getStatusPayload(true).c_str(), true);
-            mqttClient.subscribe(getMqttTopic(CMD_TOPIC).c_str(), &cmdPayload);
-        }
-    }
-
-    auto dhtReadings = dht.read();
-
-    JsonDocument telemetry;
-    telemetry["temperature"] = dhtReadings.temperatureC;
-    telemetry["humidity"] = dhtReadings.humidity;
-    telemetry["soil_moisture"] = 0.0; // TODO: Integrate soil moisture sensor
-    telemetry["light"] = 0.0;         // TODO: Integrate light sensor
-
-    String payload;
-    serializeJson(telemetry, payload);
-
-    String topic = getMqttTopic(TELEMETRY_TOPIC);
-    LOG_INFO("Publishing to %s: %s", topic.c_str(), payload.c_str());
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-
-    delay(DELAY_MS);
+    // Small delay to prevent watchdog issues in loop()
+    delay(10);
 }
