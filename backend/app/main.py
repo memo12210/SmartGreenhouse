@@ -6,6 +6,7 @@ from app.api.v1 import auth, users, greenhouses, devices, telemetry, alerts
 from app.infrastructure.mqtt import mqtt_service
 from app.infrastructure.redis import redis_service
 from app.workers.mqtt_worker import start_mqtt_worker
+from app.services.discovery import discovery_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
     try:
         await mqtt_service.connect()
         await start_mqtt_worker()
+        discovery_service.start()
     except Exception as e:
         # Don't fail startup if MQTT is down, but log it
         import logging
