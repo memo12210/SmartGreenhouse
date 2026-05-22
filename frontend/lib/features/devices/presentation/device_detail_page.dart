@@ -8,22 +8,16 @@ import '../../telemetry/domain/telemetry.dart';
 import '../../telemetry/presentation/telemetry_controller.dart';
 import '../domain/device.dart';
 import 'device_controller.dart';
+import '../../alerts/domain/alert_rule.dart';
+import '../../alerts/presentation/add_alert_rule_sheet.dart';
+import '../../alerts/presentation/alert_rule_controller.dart';
 
-enum _TrendMetric {
-  temperature,
-  humidity,
-  soilMoisture,
-  light,
-  co2,
-}
+enum _TrendMetric { temperature, humidity, soilMoisture, light, co2 }
 
 class DeviceDetailPage extends ConsumerWidget {
   final Device device;
 
-  const DeviceDetailPage({
-    super.key,
-    required this.device,
-  });
+  const DeviceDetailPage({super.key, required this.device});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,10 +32,7 @@ class DeviceDetailPage extends ConsumerWidget {
             _Header(device: device),
             const SizedBox(height: 22),
 
-            _DeviceStatusCard(
-              device: device,
-              isOnline: isOnline,
-            ),
+            _DeviceStatusCard(device: device, isOnline: isOnline),
 
             const SizedBox(height: 22),
 
@@ -60,9 +51,7 @@ class DeviceDetailPage extends ConsumerWidget {
                     if (telemetry == null)
                       const _EmptyTelemetryCard()
                     else ...[
-                      _MainTemperatureCard(
-                        temperature: telemetry.temperature,
-                      ),
+                      _MainTemperatureCard(temperature: telemetry.temperature),
                       const SizedBox(height: 14),
                       Row(
                         children: [
@@ -112,9 +101,7 @@ class DeviceDetailPage extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _BatteryCard(
-                        batteryLevel: telemetry.batteryLevel,
-                      ),
+                      _BatteryCard(batteryLevel: telemetry.batteryLevel),
                     ],
                   ],
                 );
@@ -125,9 +112,8 @@ class DeviceDetailPage extends ConsumerWidget {
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (error, _) => _ErrorCard(
-                message: 'Telemetry error: $error',
-              ),
+              error: (error, _) =>
+                  _ErrorCard(message: 'Telemetry error: $error'),
             ),
 
             const SizedBox(height: 24),
@@ -135,11 +121,15 @@ class DeviceDetailPage extends ConsumerWidget {
             _TelemetryTrendsSection(deviceId: device.id),
 
             const SizedBox(height: 24),
+            const SizedBox(height: 24),
+
+            _AlertRulesSection(deviceId: device.id),
 
             const _SectionTitle(
               title: 'Device Information',
               subtitle: 'Technical details and configuration.',
             ),
+
             const SizedBox(height: 14),
 
             _InfoPanel(device: device),
@@ -163,9 +153,7 @@ class DeviceDetailPage extends ConsumerWidget {
 class _TelemetryTrendsSection extends ConsumerStatefulWidget {
   final String deviceId;
 
-  const _TelemetryTrendsSection({
-    required this.deviceId,
-  });
+  const _TelemetryTrendsSection({required this.deviceId});
 
   @override
   ConsumerState<_TelemetryTrendsSection> createState() =>
@@ -205,10 +193,7 @@ class _TelemetryTrendsSectionState
             if (orderedHistory.length < 2)
               const _EmptyHistoryCard()
             else
-              _TrendChartCard(
-                history: orderedHistory,
-                metric: selectedMetric,
-              ),
+              _TrendChartCard(history: orderedHistory, metric: selectedMetric),
           ],
         );
       },
@@ -218,9 +203,7 @@ class _TelemetryTrendsSectionState
           child: CircularProgressIndicator(),
         ),
       ),
-      error: (error, _) => _ErrorCard(
-        message: 'History error: $error',
-      ),
+      error: (error, _) => _ErrorCard(message: 'History error: $error'),
     );
   }
 }
@@ -328,10 +311,7 @@ class _TrendChartCard extends StatelessWidget {
   final List<Telemetry> history;
   final _TrendMetric metric;
 
-  const _TrendChartCard({
-    required this.history,
-    required this.metric,
-  });
+  const _TrendChartCard({required this.history, required this.metric});
 
   @override
   Widget build(BuildContext context) {
@@ -361,9 +341,7 @@ class _TrendChartCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(
-          color: metricInfo.color.withOpacity(0.18),
-        ),
+        border: Border.all(color: metricInfo.color.withOpacity(0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,8 +354,8 @@ class _TrendChartCard extends StatelessWidget {
                 child: Text(
                   metricInfo.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               Text(
@@ -436,8 +414,10 @@ class _TrendChartCard extends StatelessWidget {
 
                         final timestamp = history[index].timestamp;
                         final hour = timestamp.hour.toString().padLeft(2, '0');
-                        final minute =
-                            timestamp.minute.toString().padLeft(2, '0');
+                        final minute = timestamp.minute.toString().padLeft(
+                          2,
+                          '0',
+                        );
 
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -624,10 +604,7 @@ class _TrendStat extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textGrey,
-              fontSize: 10,
-            ),
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
           ),
           const SizedBox(height: 5),
           Text(
@@ -670,24 +647,16 @@ class _EmptyHistoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.orangeAccent.withOpacity(0.2),
-        ),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.show_chart_rounded,
-            color: Colors.orangeAccent,
-          ),
+          Icon(Icons.show_chart_rounded, color: Colors.orangeAccent),
           SizedBox(width: 14),
           Expanded(
             child: Text(
               'Not enough telemetry history to draw a trend chart yet. Send at least two telemetry records for this device.',
-              style: TextStyle(
-                color: AppColors.textGrey,
-                height: 1.4,
-              ),
+              style: TextStyle(color: AppColors.textGrey, height: 1.4),
             ),
           ),
         ],
@@ -714,10 +683,7 @@ class _Header extends StatelessWidget {
             child: const SizedBox(
               width: 46,
               height: 46,
-              child: Icon(
-                Icons.arrow_back_rounded,
-                color: AppColors.neonGreen,
-              ),
+              child: Icon(Icons.arrow_back_rounded, color: AppColors.neonGreen),
             ),
           ),
         ),
@@ -739,8 +705,8 @@ class _Header extends StatelessWidget {
                 device.name,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -754,10 +720,7 @@ class _DeviceStatusCard extends StatelessWidget {
   final Device device;
   final bool isOnline;
 
-  const _DeviceStatusCard({
-    required this.device,
-    required this.isOnline,
-  });
+  const _DeviceStatusCard({required this.device, required this.isOnline});
 
   @override
   Widget build(BuildContext context) {
@@ -768,9 +731,7 @@ class _DeviceStatusCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: statusColor.withOpacity(0.24),
-        ),
+        border: Border.all(color: statusColor.withOpacity(0.24)),
         boxShadow: [
           BoxShadow(
             color: statusColor.withOpacity(0.08),
@@ -788,11 +749,7 @@ class _DeviceStatusCard extends StatelessWidget {
               color: statusColor.withOpacity(0.14),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Icon(
-              Icons.sensors_rounded,
-              color: statusColor,
-              size: 34,
-            ),
+            child: Icon(Icons.sensors_rounded, color: statusColor, size: 34),
           ),
           const SizedBox(width: 18),
           Expanded(
@@ -802,8 +759,8 @@ class _DeviceStatusCard extends StatelessWidget {
                 Text(
                   isOnline ? 'Device Online' : 'Device Offline',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -843,23 +800,20 @@ class _DeviceStatusCard extends StatelessWidget {
 class _MainTemperatureCard extends StatelessWidget {
   final double? temperature;
 
-  const _MainTemperatureCard({
-    required this.temperature,
-  });
+  const _MainTemperatureCard({required this.temperature});
 
   @override
   Widget build(BuildContext context) {
-    final tempText =
-        temperature == null ? '--' : temperature!.toStringAsFixed(1);
+    final tempText = temperature == null
+        ? '--'
+        : temperature!.toStringAsFixed(1);
 
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.18),
-        ),
+        border: Border.all(color: AppColors.neonGreen.withOpacity(0.18)),
       ),
       child: Row(
         children: [
@@ -893,8 +847,8 @@ class _MainTemperatureCard extends StatelessWidget {
                 Text(
                   '$tempText °C',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -929,9 +883,7 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: color.withOpacity(0.16),
-        ),
+        border: Border.all(color: color.withOpacity(0.16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -949,9 +901,9 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '$displayValue $unit',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -962,14 +914,13 @@ class _MetricCard extends StatelessWidget {
 class _BatteryCard extends StatelessWidget {
   final double? batteryLevel;
 
-  const _BatteryCard({
-    required this.batteryLevel,
-  });
+  const _BatteryCard({required this.batteryLevel});
 
   @override
   Widget build(BuildContext context) {
-    final batteryText =
-        batteryLevel == null ? '--' : batteryLevel!.toStringAsFixed(0);
+    final batteryText = batteryLevel == null
+        ? '--'
+        : batteryLevel!.toStringAsFixed(0);
     final isHealthy = batteryLevel == null || batteryLevel! >= 40;
     final color = isHealthy ? AppColors.neonGreen : Colors.redAccent;
 
@@ -978,9 +929,7 @@ class _BatteryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: color.withOpacity(0.18),
-        ),
+        border: Border.all(color: color.withOpacity(0.18)),
       ),
       child: Row(
         children: [
@@ -1007,19 +956,16 @@ class _BatteryCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   '$batteryText%',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ),
           Text(
             isHealthy ? 'Healthy' : 'Low',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -1039,9 +985,7 @@ class _InfoPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.12),
-        ),
+        border: Border.all(color: AppColors.neonGreen.withOpacity(0.12)),
       ),
       child: Column(
         children: [
@@ -1060,10 +1004,7 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1076,20 +1017,14 @@ class _InfoRow extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textGrey,
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
             ),
           ),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ),
         ],
@@ -1143,10 +1078,7 @@ class _ActionGrid extends ConsumerWidget {
 
   void _showCommandMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -1162,10 +1094,7 @@ class _ActionGrid extends ConsumerWidget {
           ),
           content: Text(
             'Are you sure you want to remove "${device.name}" from this greenhouse?',
-            style: const TextStyle(
-              color: AppColors.textGrey,
-              height: 1.4,
-            ),
+            style: const TextStyle(color: AppColors.textGrey, height: 1.4),
           ),
           actions: [
             TextButton(
@@ -1187,10 +1116,9 @@ class _ActionGrid extends ConsumerWidget {
     if (shouldDelete != true) return;
 
     try {
-      await ref.read(devicesProvider(device.greenhouseId).notifier).deleteDevice(
-            deviceId: device.id,
-            greenhouseId: device.greenhouseId,
-          );
+      await ref
+          .read(devicesProvider(device.greenhouseId).notifier)
+          .deleteDevice(deviceId: device.id, greenhouseId: device.greenhouseId);
 
       if (!context.mounted) return;
 
@@ -1272,24 +1200,16 @@ class _EmptyTelemetryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.orangeAccent.withOpacity(0.2),
-        ),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.data_usage_rounded,
-            color: Colors.orangeAccent,
-          ),
+          Icon(Icons.data_usage_rounded, color: Colors.orangeAccent),
           SizedBox(width: 14),
           Expanded(
             child: Text(
               'No telemetry has been received from this device yet.',
-              style: TextStyle(
-                color: AppColors.textGrey,
-                height: 1.4,
-              ),
+              style: TextStyle(color: AppColors.textGrey, height: 1.4),
             ),
           ),
         ],
@@ -1301,9 +1221,7 @@ class _EmptyTelemetryCard extends StatelessWidget {
 class _ErrorCard extends StatelessWidget {
   final String message;
 
-  const _ErrorCard({
-    required this.message,
-  });
+  const _ErrorCard({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -1312,14 +1230,9 @@ class _ErrorCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: Colors.redAccent.withOpacity(0.18),
-        ),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.18)),
       ),
-      child: Text(
-        message,
-        style: const TextStyle(color: Colors.redAccent),
-      ),
+      child: Text(message, style: const TextStyle(color: Colors.redAccent)),
     );
   }
 }
@@ -1328,10 +1241,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionTitle({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -1340,19 +1250,443 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 13,
+          style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+        ),
+      ],
+    );
+  }
+}
+
+class _AlertRulesSection extends ConsumerWidget {
+  final String deviceId;
+
+  const _AlertRulesSection({required this.deviceId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rulesAsync = ref.watch(alertRulesProvider(deviceId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeaderWithAction(
+          title: 'Alert Rules',
+          subtitle: 'Create automatic warning rules for this device.',
+          actionText: 'Add Rule',
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) {
+                return AddAlertRuleSheet(deviceId: deviceId);
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        rulesAsync.when(
+          data: (rules) {
+            if (rules.isEmpty) {
+              return const _EmptyAlertRulesCard();
+            }
+
+            return Column(
+              children: rules
+                  .map((rule) => _AlertRuleCard(deviceId: deviceId, rule: rule))
+                  .toList(),
+            );
+          },
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          error: (error, _) => _ErrorCard(message: 'Alert rules error: $error'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionHeaderWithAction extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String actionText;
+  final VoidCallback onTap;
+
+  const _SectionHeaderWithAction({
+    required this.title,
+    required this.subtitle,
+    required this.actionText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _SectionTitle(title: title, subtitle: subtitle),
+        ),
+        const SizedBox(width: 12),
+        Material(
+          color: AppColors.neonGreen,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.add_rounded, color: Colors.black, size: 18),
+                  const SizedBox(width: 4),
+                  Text(
+                    actionText,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
     );
   }
+}
+
+class _AlertRuleCard extends ConsumerWidget {
+  final String deviceId;
+  final AlertRule rule;
+
+  const _AlertRuleCard({required this.deviceId, required this.rule});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final severityData = _ruleSeverityData(rule.severity);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: rule.isEnabled
+              ? severityData.color.withOpacity(0.18)
+              : AppColors.textGrey.withOpacity(0.12),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: severityData.color.withOpacity(0.13),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  severityData.icon,
+                  color: severityData.color,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _fieldLabel(rule.field),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${rule.operator} ${rule.threshold.toStringAsFixed(1)}',
+                      style: const TextStyle(
+                        color: AppColors.textGrey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _RuleStatusBadge(
+                label: rule.isEnabled ? 'ACTIVE' : 'OFF',
+                color: rule.isEnabled
+                    ? AppColors.neonGreen
+                    : AppColors.textGrey,
+              ),
+            ],
+          ),
+          if (rule.messageTemplate != null &&
+              rule.messageTemplate!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                rule.messageTemplate!,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _SmallRuleActionButton(
+                  text: rule.isEnabled ? 'Disable' : 'Enable',
+                  icon: rule.isEnabled
+                      ? Icons.pause_circle_outline_rounded
+                      : Icons.play_circle_outline_rounded,
+                  color: AppColors.neonGreen,
+                  onTap: () async {
+                    await ref
+                        .read(alertRulesProvider(deviceId).notifier)
+                        .toggleRule(rule);
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _SmallRuleActionButton(
+                  text: 'Delete',
+                  icon: Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                  onTap: () => _confirmDelete(context, ref),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.surfaceDark,
+          title: const Text(
+            'Delete Alert Rule',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'This rule will be permanently deleted. Are you sure?',
+            style: TextStyle(color: AppColors.textGrey, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      await ref.read(alertRulesProvider(deviceId).notifier).deleteRule(rule.id);
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Alert rule deleted.'),
+          backgroundColor: AppColors.neonGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete rule: $error'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  _RuleSeverityData _ruleSeverityData(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'critical':
+        return const _RuleSeverityData(
+          color: Colors.redAccent,
+          icon: Icons.error_outline_rounded,
+        );
+      case 'info':
+        return const _RuleSeverityData(
+          color: Colors.lightBlueAccent,
+          icon: Icons.info_outline_rounded,
+        );
+      case 'warning':
+      default:
+        return const _RuleSeverityData(
+          color: Colors.orangeAccent,
+          icon: Icons.warning_amber_rounded,
+        );
+    }
+  }
+
+  String _fieldLabel(String field) {
+    switch (field) {
+      case 'temperature':
+        return 'Temperature';
+      case 'humidity':
+        return 'Humidity';
+      case 'soil_moisture':
+        return 'Soil Moisture';
+      case 'light_intensity':
+        return 'Light Intensity';
+      case 'co2':
+        return 'CO₂ Level';
+      case 'battery_level':
+        return 'Battery Level';
+      default:
+        return field;
+    }
+  }
+}
+
+class _SmallRuleActionButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SmallRuleActionButton({
+    required this.text,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withOpacity(0.14),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 17),
+              const SizedBox(width: 6),
+              Text(
+                text,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RuleStatusBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _RuleStatusBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.13),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyAlertRulesCard extends StatelessWidget {
+  const _EmptyAlertRulesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.neonGreen.withOpacity(0.12)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.rule_rounded, color: AppColors.neonGreen),
+          SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'No alert rules have been created for this device yet.',
+              style: TextStyle(color: AppColors.textGrey, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RuleSeverityData {
+  final Color color;
+  final IconData icon;
+
+  const _RuleSeverityData({required this.color, required this.icon});
 }

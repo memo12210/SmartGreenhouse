@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, users, greenhouses, devices, telemetry, alerts
+from app.api.v1 import auth, users, greenhouses, devices, telemetry, alerts, notifications
 from app.infrastructure.mqtt import mqtt_service
 from app.infrastructure.redis import redis_service
 from app.workers.mqtt_worker import start_mqtt_worker
@@ -47,6 +47,7 @@ app.include_router(greenhouses.router, prefix=f"{settings.API_V1_STR}/greenhouse
 app.include_router(devices.router, prefix=f"{settings.API_V1_STR}/devices", tags=["devices"])
 app.include_router(telemetry.router, prefix=f"{settings.API_V1_STR}/telemetry", tags=["telemetry"])
 app.include_router(alerts.router, prefix=f"{settings.API_V1_STR}/alerts", tags=["alerts"])
+app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
 
 
 @app.get("/health")
