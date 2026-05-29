@@ -156,4 +156,7 @@ cython_debug/
 *.db
 *.pcap
 logs/
-data/
+/data/
+mlruns/
+*.joblib
+*.pkl

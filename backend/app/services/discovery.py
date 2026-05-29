@@ -37,7 +37,7 @@ class DiscoveryService:
                     }
 
                     await mqtt_service.publish("greenhouse/mapping", payload, retain=True)
-                    logger.debug("Broadcasted device discovery mapping")
+                    logger.info("Broadcasted device discovery mapping")
             except Exception as e:
                 logger.error(f"Error in discovery broadcast: {e}")
 

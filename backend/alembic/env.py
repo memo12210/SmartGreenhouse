@@ -26,6 +26,7 @@ from app.domain.device import Device, DeviceCommand
 from app.domain.telemetry import Telemetry
 from app.domain.alert import Alert
 from app.domain.audit import AuditLog
+from app.domain.ml import Prediction
 
 target_metadata = Base.metadata
 

@@ -3,7 +3,7 @@ class ApiEndpoints {
 
   // Use 10.0.2.2 for Android Emulator to connect to host's localhost
   // Use localhost or your computer's IP for other platforms
-  static const String baseUrl = 'http://10.92.84.107:8000';
+  static const String baseUrl = 'http://10.0.2.2:8000';
   static const String apiV1 = '/api/v1';
 
   // Auth
