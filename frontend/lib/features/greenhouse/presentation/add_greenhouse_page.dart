@@ -18,11 +18,16 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
 
   final _nameController = TextEditingController();
   final _areaSizeController = TextEditingController();
+  final _fertilizerNController = TextEditingController();
+  final _fertilizerPController = TextEditingController();
+  final _fertilizerKController = TextEditingController();
 
   final List<_KVItem> _kvItems = [];
 
   String _selectedCrop = 'Tomato';
   String _selectedVariety = 'Beefsteak';
+  DateTime? _selectedPlantingDate;
+  DateTime? _selectedHarvestDate;
   String? _selectedCity;
   String? _selectedDistrict;
   bool _isLoading = false;
@@ -59,6 +64,9 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
   void dispose() {
     _nameController.dispose();
     _areaSizeController.dispose();
+    _fertilizerNController.dispose();
+    _fertilizerPController.dispose();
+    _fertilizerKController.dispose();
 
     for (final item in _kvItems) {
       item.keyController.dispose();
@@ -86,6 +94,17 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
     final Map<String, dynamic> metadata = {
       'crop_type': _selectedCrop,
       'variety': _selectedVariety,
+      'planting_date': _selectedPlantingDate!.toIsoformatString(),
+      'harvest_date': _selectedHarvestDate!.toIsoformatString(),
+      'fertilizer_N_kg_ha':
+          double.tryParse(_fertilizerNController.text.replaceAll(',', '.')) ??
+              0.0,
+      'fertilizer_P_kg_ha':
+          double.tryParse(_fertilizerPController.text.replaceAll(',', '.')) ??
+              0.0,
+      'fertilizer_K_kg_ha':
+          double.tryParse(_fertilizerKController.text.replaceAll(',', '.')) ??
+              0.0,
       if (city != null) 'city': city,
       if (district != null) 'district': district,
       if (areaSizeText.isNotEmpty)
@@ -266,6 +285,112 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
                             });
                           },
                         ),
+                        const SizedBox(height: 16),
+                        _DatePickerField(
+                          label: 'Planting Date',
+                          selectedDate: _selectedPlantingDate,
+                          icon: Icons.calendar_today_rounded,
+                          onDateSelected: (date) {
+                            setState(() {
+                              _selectedPlantingDate = date;
+                            });
+                          },
+                          validator: (value) {
+                            if (_selectedPlantingDate == null) {
+                              return 'Planting date is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _DatePickerField(
+                          label: 'Expected Harvest Date',
+                          selectedDate: _selectedHarvestDate,
+                          icon: Icons.event_available_rounded,
+                          onDateSelected: (date) {
+                            setState(() {
+                              _selectedHarvestDate = date;
+                            });
+                          },
+                          validator: (value) {
+                            if (_selectedHarvestDate == null) {
+                              return 'Harvest date is required';
+                            }
+                            if (_selectedPlantingDate != null &&
+                                _selectedHarvestDate!
+                                    .isBefore(_selectedPlantingDate!)) {
+                              return 'Harvest must be after planting';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        const _FormSectionTitle(
+                          title: 'Agricultural Inputs',
+                          subtitle:
+                              'Enter fertilizer concentrations for accurate yield predictions.',
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _InputField(
+                                controller: _fertilizerNController,
+                                label: 'Nitrogen Fertilizer',
+                                hint: '100',
+                                icon: Icons.science_rounded,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                suffixText: 'kg/ha',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _InputField(
+                                controller: _fertilizerPController,
+                                label: 'Phosphorus Fertilizer',
+                                hint: '50',
+                                icon: Icons.science_rounded,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                suffixText: 'kg/ha',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _InputField(
+                          controller: _fertilizerKController,
+                          label: 'Potasium Fertilizer',
+                          hint: '150',
+                          icon: Icons.science_rounded,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          suffixText: 'kg/ha',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Fertilizer K is required';
+                            }
+                            return null;
+                          },
+                        ),
                         const SizedBox(height: 24),
                         const _FormSectionTitle(
                           title: 'Location',
@@ -320,7 +445,7 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
                         const _FormSectionTitle(
                           title: 'Optional Attributes',
                           subtitle:
-                              'Add custom metadata such as soil type, irrigation method or crop variety.',
+                              'Add custom metadata such as soil type or irrigation method.',
                         ),
                         const SizedBox(height: 16),
                         if (_kvItems.isEmpty)
@@ -861,6 +986,77 @@ class _VarietyDropdown extends StatelessWidget {
   }
 }
 
+class _DatePickerField extends StatelessWidget {
+  final String label;
+  final DateTime? selectedDate;
+  final IconData icon;
+  final ValueChanged<DateTime> onDateSelected;
+  final String? Function(String?) validator;
+
+  const _DatePickerField({
+    required this.label,
+    required this.selectedDate,
+    required this.icon,
+    required this.onDateSelected,
+    required this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final displayDate = selectedDate == null
+        ? 'Select Date'
+        : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
+
+    return TextFormField(
+      readOnly: true,
+      onTap: () async {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: selectedDate ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.dark(
+                  primary: AppColors.neonGreen,
+                  onPrimary: Colors.black,
+                  surface: AppColors.surfaceDark,
+                  onSurface: Colors.white,
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.neonGreen,
+                  ),
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (date != null) {
+          onDateSelected(date);
+        }
+      },
+      decoration: _dropdownDecoration(
+        label: label,
+        icon: icon,
+      ).copyWith(
+        hintText: displayDate,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ),
+      validator: validator,
+      controller: TextEditingController(text: selectedDate == null ? '' : displayDate),
+    );
+  }
+}
+
+extension _DateTimeIso on DateTime {
+  String toIsoformatString() {
+    return "${year}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
+  }
+}
+
 class _OptionalAttributeRow extends StatelessWidget {
   final _KVItem item;
   final VoidCallback onRemove;
@@ -1034,7 +1230,7 @@ class _InfoCard extends StatelessWidget {
           SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Greenhouse metadata such as crop type, location and area size can be used later for AI-supported recommendations, alert rules and reporting.',
+              'Greenhouse metadata such as crop type, location and area size can be used later for AI-supported recommendations.',
               style: TextStyle(
                 color: AppColors.textGrey,
                 height: 1.4,
