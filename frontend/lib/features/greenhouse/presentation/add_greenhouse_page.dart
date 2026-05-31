@@ -22,6 +22,7 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
   final List<_KVItem> _kvItems = [];
 
   String _selectedCrop = 'Tomato';
+  String _selectedVariety = 'Beefsteak';
   String? _selectedCity;
   String? _selectedDistrict;
   bool _isLoading = false;
@@ -31,10 +32,16 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
     'Cucumber',
     'Pepper',
     'Lettuce',
-    'Strawberry',
-    'Herbs',
     'Other',
   ];
+
+  static const Map<String, List<String>> _cropVarieties = {
+    'Tomato': ['Beefsteak', 'Cherry', 'Heirloom', 'Roma'],
+    'Cucumber': ['English', 'Pickling', 'Slicing'],
+    'Pepper': ['Bell', 'Habanero', 'Jalapeno'],
+    'Lettuce': ['Butterhead', 'Iceberg', 'Leaf', 'Romaine'],
+    'Other': ['Generic'],
+  };
 
   static const List<String> _numericKeys = [
     'days_to_maturity',
@@ -77,7 +84,8 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
     final location = locationParts.join(' / ');
 
     final Map<String, dynamic> metadata = {
-      'crop': _selectedCrop,
+      'crop_type': _selectedCrop,
+      'variety': _selectedVariety,
       if (city != null) 'city': city,
       if (district != null) 'district': district,
       if (areaSizeText.isNotEmpty)
@@ -241,6 +249,20 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
 
                             setState(() {
                               _selectedCrop = value;
+                              _selectedVariety =
+                                  _cropVarieties[value]?.first ?? 'Generic';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _VarietyDropdown(
+                          value: _selectedVariety,
+                          items: _cropVarieties[_selectedCrop] ?? ['Generic'],
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _selectedVariety = value;
                             });
                           },
                         ),
@@ -800,6 +822,40 @@ class _CropDropdown extends StatelessWidget {
       decoration: _dropdownDecoration(
         label: 'Crop Type',
         icon: Icons.spa_rounded,
+      ),
+    );
+  }
+}
+
+class _VarietyDropdown extends StatelessWidget {
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const _VarietyDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      items: items
+          .map(
+            (variety) => DropdownMenuItem<String>(
+              value: variety,
+              child: Text(variety),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+      dropdownColor: AppColors.surfaceDark,
+      style: const TextStyle(color: Colors.white),
+      decoration: _dropdownDecoration(
+        label: 'Variety',
+        icon: Icons.category_rounded,
       ),
     );
   }
