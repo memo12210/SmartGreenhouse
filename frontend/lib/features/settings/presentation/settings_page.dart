@@ -19,8 +19,6 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  double maxTemp = 30.0;
-  double minHumid = 45.0;
   bool pushNotifications = true;
   bool criticalAlerts = true;
   bool dailySummary = false;
@@ -223,46 +221,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     onChanged: (value) {
                       setState(() {
                         dailySummary = value;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  _SectionTitle(
-                    title: 'Global Thresholds',
-                    subtitle: 'Default alert thresholds used across greenhouses.',
-                  ),
-                  const SizedBox(height: 14),
-
-                  _ThresholdSlider(
-                    title: 'Max Temperature',
-                    value: maxTemp,
-                    unit: '°C',
-                    color: Colors.orangeAccent,
-                    icon: Icons.thermostat_rounded,
-                    min: 0,
-                    max: 50,
-                    onChanged: (value) {
-                      setState(() {
-                        maxTemp = value;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  _ThresholdSlider(
-                    title: 'Min Humidity',
-                    value: minHumid,
-                    unit: '%',
-                    color: Colors.blueAccent,
-                    icon: Icons.water_drop_rounded,
-                    min: 0,
-                    max: 100,
-                    onChanged: (value) {
-                      setState(() {
-                        minHumid = value;
                       });
                     },
                   ),
@@ -872,80 +830,6 @@ class _SwitchTile extends StatelessWidget {
           Switch(
             value: value,
             activeColor: AppColors.neonGreen,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThresholdSlider extends StatelessWidget {
-  final String title;
-  final double value;
-  final String unit;
-  final Color color;
-  final IconData icon;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  const _ThresholdSlider({
-    required this.title,
-    required this.value,
-    required this.unit,
-    required this.color,
-    required this.icon,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: color.withOpacity(0.14),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Text(
-                '${value.toInt()}$unit',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            activeColor: color,
-            inactiveColor: Colors.white10,
             onChanged: onChanged,
           ),
         ],
