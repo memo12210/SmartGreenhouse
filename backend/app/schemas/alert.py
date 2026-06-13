@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict
 from app.domain.alert import AlertSeverity
@@ -23,6 +24,7 @@ class AlertRead(AlertBase):
     greenhouse_id: uuid.UUID
     is_acknowledged: bool
     acknowledged_by: Optional[uuid.UUID] = None
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

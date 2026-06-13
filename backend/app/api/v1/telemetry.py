@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.domain.user import User
-from app.domain.device import Device
+from app.domain.device import Device, DeviceStatus
 from app.schemas.telemetry import TelemetryRead, TelemetryCreate
 from app.services.telemetry import TelemetryService
 from app.repositories.telemetry import TelemetryRepository
@@ -59,6 +59,15 @@ async def ingest_telemetry(
 
     service = TelemetryService(TelemetryRepository(db), alert_engine)
     result = await service.ingest_telemetry(telemetry_in, greenhouse_id=device.greenhouse_id)
+
+    # A device that is reporting telemetry is, by definition, online. Mirror the
+    # MQTT ingestion path so REST-reported devices are recognised the same way.
+    from app.repositories.device import DeviceCommandRepository
+    from app.services.device import DeviceService
+
+    device_service = DeviceService(device_repo, DeviceCommandRepository(db))
+    await device_service.update_device_status(device.id, DeviceStatus.ONLINE)
+
     await db.commit()
 
     TELEMETRY_INGESTED.labels(device_type=device.device_type).inc()
