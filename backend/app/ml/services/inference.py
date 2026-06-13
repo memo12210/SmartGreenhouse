@@ -2,7 +2,7 @@ import os
 import joblib
 import pandas as pd
 from datetime import datetime
-from typing import List, Union
+from typing import List, Optional, Union
 from app.ml.data.schemas import PredictionInput, PredictionOutput
 from app.ml.features.pipeline import FeaturePipeline
 
@@ -45,3 +45,16 @@ class InferenceService:
             ))
 
         return results[0] if single_prediction else results
+
+
+# Module-level singleton: the model is loaded from disk once (lazily on first
+# predict) and reused across requests/workers instead of re-reading the joblib
+# file on every call.
+_inference_service: Optional[InferenceService] = None
+
+
+def get_inference_service() -> InferenceService:
+    global _inference_service
+    if _inference_service is None:
+        _inference_service = InferenceService()
+    return _inference_service

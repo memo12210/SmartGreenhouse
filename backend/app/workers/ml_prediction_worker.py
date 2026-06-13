@@ -6,7 +6,7 @@ from app.repositories.greenhouse import GreenhouseRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.repositories.ml import PredictionRepository
 from app.services.ml import MLPredictionService
-from app.ml.services.inference import InferenceService
+from app.ml.services.inference import get_inference_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class MLPredictionWorker:
                     greenhouse_repo = GreenhouseRepository(db)
                     telemetry_repo = TelemetryRepository(db)
                     prediction_repo = PredictionRepository(db)
-                    inference_service = InferenceService()
+                    inference_service = get_inference_service()
 
                     ml_service = MLPredictionService(
                         prediction_repo=prediction_repo,
@@ -56,5 +56,15 @@ class MLPredictionWorker:
         if self._task is None:
             self._task = asyncio.create_task(self.run_periodic_predictions())
             logger.info("ML Prediction Worker task created")
+
+    async def stop(self):
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+            logger.info("ML Prediction Worker stopped")
 
 ml_prediction_worker = MLPredictionWorker()
