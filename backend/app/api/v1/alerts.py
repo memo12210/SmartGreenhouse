@@ -1,7 +1,7 @@
 import uuid
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -23,9 +23,11 @@ router = APIRouter()
 async def list_greenhouse_alerts(
     greenhouse: Greenhouse = Depends(deps.get_greenhouse_or_404),
     db: AsyncSession = Depends(deps.get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
 ):
     service = AlertService(AlertRepository(db))
-    return await service.list_greenhouse_alerts(greenhouse.id)
+    return await service.list_greenhouse_alerts(greenhouse.id, skip=skip, limit=limit)
 
 
 @router.post("/{alert_id}/acknowledge", response_model=AlertRead)

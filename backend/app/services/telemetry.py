@@ -24,6 +24,12 @@ class TelemetryService:
         )
         created = await self.telemetry_repo.create(telemetry)
 
+        # create() returns None for a duplicate (timestamp, device_id). In that
+        # case the reading was already ingested, so skip alert evaluation to
+        # avoid re-processing and just return the (unpersisted) object.
+        if created is None:
+            return telemetry
+
         if self.alert_engine and greenhouse_id:
             await self.alert_engine.evaluate_telemetry(created, greenhouse_id)
 

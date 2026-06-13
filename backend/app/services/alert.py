@@ -1,7 +1,18 @@
 import uuid
+import math
 import operator
 import logging
 from typing import List, Optional
+
+
+def _float_eq(a: float, b: float) -> bool:
+    # Direct float equality is unreliable for sensor values; compare with a small
+    # tolerance so a rule like "value == 25.0" behaves intuitively.
+    return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+
+
+def _float_ne(a: float, b: float) -> bool:
+    return not _float_eq(a, b)
 
 from app.domain.alert import Alert, AlertRule
 from app.domain.telemetry import Telemetry
@@ -54,8 +65,13 @@ class AlertService:
         await self.alert_repo.commit()
         return updated
 
-    async def list_greenhouse_alerts(self, greenhouse_id: uuid.UUID) -> List[Alert]:
-        return await self.alert_repo.get_by_greenhouse(greenhouse_id)
+    async def list_greenhouse_alerts(
+        self,
+        greenhouse_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[Alert]:
+        return await self.alert_repo.get_by_greenhouse(greenhouse_id, skip=skip, limit=limit)
 
     async def delete_alert(self, alert_id: uuid.UUID) -> bool:
         deleted = await self.alert_repo.delete(alert_id)
@@ -121,8 +137,8 @@ class AlertEngineService:
         "<": operator.lt,
         ">=": operator.ge,
         "<=": operator.le,
-        "==": operator.eq,
-        "!=": operator.ne,
+        "==": _float_eq,
+        "!=": _float_ne,
     }
 
     def __init__(

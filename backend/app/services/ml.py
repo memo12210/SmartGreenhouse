@@ -73,7 +73,10 @@ class MLPredictionService:
 
             # 3. Prepare Prediction Input
             prediction_input = PredictionInput(
-                greenhouse_id=float(hash(str(greenhouse_id)) % 10**8), # Numerical ID for model if needed, or just placeholder
+                # Stable numerical id derived from the UUID. Python's hash() is
+                # salted per-process (PYTHONHASHSEED), so it would yield a
+                # different feature value after every restart.
+                greenhouse_id=float(greenhouse_id.int % 10**8),
                 crop_type=crop_type,
                 variety=variety,
                 planting_date=planting_date,

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.config import settings
-from app.schemas.user import Token, UserCreate, UserRead
+from app.schemas.user import Token, UserRegister, UserRead
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.repositories.user import UserRepository, RefreshTokenRepository
@@ -45,7 +45,7 @@ async def refresh_token(
 
 @router.post("/register", response_model=UserRead)
 async def register(
-    user_in: UserCreate,
+    user_in: UserRegister,
     db: AsyncSession = Depends(deps.get_db)
 ):
     user_service = UserService(UserRepository(db))

@@ -60,7 +60,21 @@ class DeviceService:
 
         # Publish to MQTT
         topic = f"greenhouse/{device.greenhouse_id}/device/{device.id}/commands"
-        await mqtt_service.publish(topic, {"command_id": str(command.id), "command": command.command, "payload": command.payload})
+        try:
+            await mqtt_service.publish(
+                topic,
+                {
+                    "command_id": str(command.id),
+                    "command": command.command,
+                    "payload": command.payload,
+                },
+            )
+        except Exception as e:
+            # Dispatch failed (e.g. broker down). Record the real outcome instead
+            # of marking the command as "sent".
+            await self.command_repo.update(command, {"status": "failed"})
+            await self.command_repo.commit()
+            raise ConnectionError(f"Failed to dispatch command to device: {e}") from e
 
         # Update command status to 'sent'
         await self.command_repo.update(command, {"status": "sent"})

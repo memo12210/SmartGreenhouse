@@ -156,7 +156,22 @@ cython_debug/
 *.db
 *.pcap
 logs/
-/data/
-mlruns/
 *.joblib
 *.pkl
+
+# Secrets — NEVER commit credentials (Firebase service account, GCP keys, etc.)
+app/secrets/*
+!app/secrets/.gitkeep
+**/firebase-service-account.json
+**/*serviceaccount*.json
+*-credentials.json
+
+# Keep the env template tracked (real .env is ignored above)
+!.env.example
+
+# ML artifacts & datasets (models/runs are generated; datasets can be large/proprietary)
+mlruns/
+mlartifacts/
+app/ml/models/*.joblib
+data/raw/*.csv
+data/processed/

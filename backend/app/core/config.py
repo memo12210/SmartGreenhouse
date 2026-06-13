@@ -51,7 +51,13 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
 
     model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=True, env_file_encoding="utf-8"
+        env_file=".env",
+        case_sensitive=True,
+        env_file_encoding="utf-8",
+        # Ignore env vars that aren't fields here. The .env legitimately holds
+        # values consumed elsewhere via os.getenv (e.g. FIREBASE_SERVICE_ACCOUNT_PATH,
+        # ML_MODEL_PATH); without this, pydantic-settings rejects them at startup.
+        extra="ignore",
     )
 
 

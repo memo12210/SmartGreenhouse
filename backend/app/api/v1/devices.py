@@ -74,3 +74,6 @@ async def send_device_command(
         return await service.send_command(device.id, command_in, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ConnectionError as e:
+        # Command was persisted as "failed" but could not be delivered.
+        raise HTTPException(status_code=503, detail=str(e))

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,6 +9,8 @@ from app.repositories.fcm_token import FcmTokenRepository
 from app.schemas.notification import FcmTokenCreate, FcmTokenRead
 from app.services.notification import NotificationTokenService
 from app.services.push_notification import PushNotificationService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -69,12 +73,16 @@ async def send_test_notification(
 
         except Exception as error:
             failure_count += 1
+            logger.error(
+                "Test push notification failed. token_id=%s error=%s",
+                token.id,
+                error,
+            )
 
             results.append(
                 {
                     "token_id": str(token.id),
                     "status": "failed",
-                    "error": str(error),
                 }
             )
 

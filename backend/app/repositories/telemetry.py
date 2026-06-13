@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import select, and_, desc
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.telemetry import Telemetry
 
@@ -10,10 +11,19 @@ class TelemetryRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, telemetry: Telemetry) -> Telemetry:
-        self.session.add(telemetry)
-        await self.session.flush()
-        return telemetry
+    async def create(self, telemetry: Telemetry) -> Optional[Telemetry]:
+        # Telemetry's primary key is (timestamp, device_id); duplicate delivery
+        # (MQTT QoS-1 redelivery, device retransmit) would otherwise raise an
+        # IntegrityError that aborts the whole ingest transaction. Wrap the insert
+        # in a SAVEPOINT so a duplicate is a no-op that returns None instead of
+        # poisoning the surrounding transaction.
+        try:
+            async with self.session.begin_nested():
+                self.session.add(telemetry)
+                await self.session.flush()
+            return telemetry
+        except IntegrityError:
+            return None
 
     async def create_bulk(self, telemetry_list: List[Telemetry]):
         self.session.add_all(telemetry_list)
