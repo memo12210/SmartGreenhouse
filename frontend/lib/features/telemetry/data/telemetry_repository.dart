@@ -14,17 +14,16 @@ class TelemetryRepository {
   TelemetryRepository(this._dio);
 
   Future<Telemetry?> getLatestTelemetry(String deviceId) async {
-    try {
-      final response = await _dio.get(
-        ApiEndpoints.telemetry(deviceId),
-        queryParameters: {'limit': 1},
-      );
-      final List data = response.data;
-      if (data.isEmpty) return null;
-      return Telemetry.fromJson(data.first);
-    } catch (e) {
-      return null;
-    }
+    // Errors are intentionally NOT swallowed: a failed request must surface as
+    // an error state (handled by AsyncValue.guard in the controller) so it is
+    // distinguishable from a successful response that simply has no telemetry.
+    final response = await _dio.get(
+      ApiEndpoints.telemetry(deviceId),
+      queryParameters: {'limit': 1},
+    );
+    final List data = response.data as List;
+    if (data.isEmpty) return null;
+    return Telemetry.fromJson(data.first);
   }
 
   Future<List<Telemetry>> getTelemetryHistory(String deviceId) async {

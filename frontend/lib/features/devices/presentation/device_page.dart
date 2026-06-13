@@ -246,7 +246,7 @@ class _DevicesHeader extends StatelessWidget {
             color: AppColors.surfaceDark,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.neonGreen.withOpacity(0.18),
+              color: AppColors.neonGreen.withValues(alpha: 0.18),
             ),
           ),
           child: const Icon(
@@ -290,11 +290,11 @@ class _DeviceSummaryCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: statusColor.withOpacity(0.22),
+          color: statusColor.withValues(alpha: 0.22),
         ),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.08),
+            color: statusColor.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -393,11 +393,11 @@ class _DeviceCard extends StatelessWidget {
             color: AppColors.surfaceDark,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: statusColor.withOpacity(0.24),
+              color: statusColor.withValues(alpha: 0.24),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.18),
+                color: Colors.black.withValues(alpha: 0.18),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -510,7 +510,7 @@ class _DeviceIcon extends StatelessWidget {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Icon(
@@ -539,7 +539,7 @@ class _StatusBadge extends StatelessWidget {
         vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -570,7 +570,7 @@ class _DeviceMetaTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.14),
+        color: Colors.black.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -621,7 +621,7 @@ class _DeviceInfoPanel extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.12),
+          color: AppColors.neonGreen.withValues(alpha: 0.12),
         ),
       ),
       child: const Row(
@@ -717,7 +717,7 @@ class _MiniStat extends StatelessWidget {
         vertical: 14,
       ),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.15),
+        color: Colors.black.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -764,7 +764,7 @@ class _IconBadge extends StatelessWidget {
       width: 54,
       height: 54,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Icon(

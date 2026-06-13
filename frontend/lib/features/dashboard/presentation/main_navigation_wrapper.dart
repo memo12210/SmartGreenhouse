@@ -21,23 +21,23 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   @override
   void initState() {
     super.initState();
-    AppNavigationController.targetTabIndex.addListener(_handleTargetTabChange);
+    AppNavigationController.target.addListener(_handleTargetTabChange);
   }
 
   @override
   void dispose() {
-    AppNavigationController.targetTabIndex.removeListener(_handleTargetTabChange);
+    AppNavigationController.target.removeListener(_handleTargetTabChange);
     super.dispose();
   }
 
   void _handleTargetTabChange() {
-    final targetIndex = AppNavigationController.targetTabIndex.value;
+    final targetTab = AppNavigationController.target.value;
 
-    if (targetIndex == null) return;
+    if (targetTab == null) return;
     if (!mounted) return;
 
     setState(() {
-      _currentIndex = targetIndex;
+      _currentIndex = targetTab.index;
     });
 
     AppNavigationController.clearTarget();

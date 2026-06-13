@@ -4,6 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/notification_repository.dart';
 
+String _currentPlatform() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return 'android';
+    case TargetPlatform.iOS:
+      return 'ios';
+    default:
+      return kIsWeb ? 'web' : defaultTargetPlatform.name;
+  }
+}
+
 final notificationControllerProvider =
     Provider<NotificationController>((ref) {
   return NotificationController(ref);
@@ -27,10 +38,12 @@ class NotificationController {
 
       debugPrint('Registering FCM token to backend: $token');
 
+      final platform = _currentPlatform();
+
       await _ref.read(notificationRepositoryProvider).registerFcmToken(
             token: token,
-            platform: 'android',
-            deviceName: 'Android Device',
+            platform: platform,
+            deviceName: '${platform[0].toUpperCase()}${platform.substring(1)} Device',
           );
 
       debugPrint('FCM token registered successfully.');

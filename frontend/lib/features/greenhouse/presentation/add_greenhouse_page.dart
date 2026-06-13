@@ -233,7 +233,7 @@ class _AddGreenhousePageState extends ConsumerState<AddGreenhousePage> {
                     color: AppColors.surfaceDark,
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                      color: AppColors.neonGreen.withOpacity(0.18),
+                      color: AppColors.neonGreen.withValues(alpha: 0.18),
                     ),
                   ),
                   child: Form(
@@ -578,7 +578,7 @@ class _CityDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       items: cities
           .map(
@@ -624,7 +624,7 @@ class _DistrictDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       items: districts
           .map(
@@ -670,17 +670,17 @@ InputDecoration _dropdownDecoration({
       color: AppColors.neonGreen,
     ),
     filled: true,
-    fillColor: Colors.black.withOpacity(0.16),
+    fillColor: Colors.black.withValues(alpha: 0.16),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(18),
       borderSide: BorderSide(
-        color: AppColors.neonGreen.withOpacity(0.14),
+        color: AppColors.neonGreen.withValues(alpha: 0.14),
       ),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(18),
       borderSide: BorderSide(
-        color: AppColors.neonGreen.withOpacity(0.14),
+        color: AppColors.neonGreen.withValues(alpha: 0.14),
       ),
     ),
     focusedBorder: OutlineInputBorder(
@@ -764,11 +764,11 @@ class _IntroCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.22),
+          color: AppColors.neonGreen.withValues(alpha: 0.22),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.neonGreen.withOpacity(0.08),
+            color: AppColors.neonGreen.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -780,7 +780,7 @@ class _IntroCard extends StatelessWidget {
             width: 62,
             height: 62,
             decoration: BoxDecoration(
-              color: AppColors.neonGreen.withOpacity(0.14),
+              color: AppColors.neonGreen.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Icon(
@@ -888,17 +888,17 @@ class _InputField extends StatelessWidget {
           color: AppColors.neonGreen,
         ),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.16),
+        fillColor: Colors.black.withValues(alpha: 0.16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: AppColors.neonGreen.withOpacity(0.14),
+            color: AppColors.neonGreen.withValues(alpha: 0.14),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: AppColors.neonGreen.withOpacity(0.14),
+            color: AppColors.neonGreen.withValues(alpha: 0.14),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -932,7 +932,7 @@ class _CropDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       items: items
           .map(
             (crop) => DropdownMenuItem<String>(
@@ -966,7 +966,7 @@ class _VarietyDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       items: items
           .map(
             (variety) => DropdownMenuItem<String>(
@@ -986,7 +986,7 @@ class _VarietyDropdown extends StatelessWidget {
   }
 }
 
-class _DatePickerField extends StatelessWidget {
+class _DatePickerField extends StatefulWidget {
   final String label;
   final DateTime? selectedDate;
   final IconData icon;
@@ -1002,17 +1002,46 @@ class _DatePickerField extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final displayDate = selectedDate == null
-        ? 'Select Date'
-        : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
+  State<_DatePickerField> createState() => _DatePickerFieldState();
+}
 
+class _DatePickerFieldState extends State<_DatePickerField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _format(widget.selectedDate));
+  }
+
+  @override
+  void didUpdateWidget(_DatePickerField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedDate != widget.selectedDate) {
+      _controller.text = _format(widget.selectedDate);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _format(DateTime? date) {
+    if (date == null) return '';
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return TextFormField(
       readOnly: true,
+      controller: _controller,
       onTap: () async {
         final date = await showDatePicker(
           context: context,
-          initialDate: selectedDate ?? DateTime.now(),
+          initialDate: widget.selectedDate ?? DateTime.now(),
           firstDate: DateTime(2020),
           lastDate: DateTime(2100),
           builder: (context, child) {
@@ -1035,25 +1064,24 @@ class _DatePickerField extends StatelessWidget {
           },
         );
         if (date != null) {
-          onDateSelected(date);
+          widget.onDateSelected(date);
         }
       },
       decoration: _dropdownDecoration(
-        label: label,
-        icon: icon,
+        label: widget.label,
+        icon: widget.icon,
       ).copyWith(
-        hintText: displayDate,
+        hintText: 'Select Date',
         floatingLabelBehavior: FloatingLabelBehavior.always,
       ),
-      validator: validator,
-      controller: TextEditingController(text: selectedDate == null ? '' : displayDate),
+      validator: widget.validator,
     );
   }
 }
 
 extension _DateTimeIso on DateTime {
   String toIsoformatString() {
-    return "${year}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
+    return "$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
   }
 }
 
@@ -1079,7 +1107,7 @@ class _OptionalAttributeRow extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'Key',
                 filled: true,
-                fillColor: Colors.black.withOpacity(0.16),
+                fillColor: Colors.black.withValues(alpha: 0.16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -1094,7 +1122,7 @@ class _OptionalAttributeRow extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'Value',
                 filled: true,
-                fillColor: Colors.black.withOpacity(0.16),
+                fillColor: Colors.black.withValues(alpha: 0.16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -1124,10 +1152,10 @@ class _OptionalEmptyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.14),
+        color: Colors.black.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.1),
+          color: AppColors.neonGreen.withValues(alpha: 0.1),
         ),
       ),
       child: const Row(
@@ -1168,7 +1196,7 @@ class _OutlineActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withOpacity(0.14),
+      color: Colors.black.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1179,7 +1207,7 @@ class _OutlineActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: AppColors.neonGreen.withOpacity(0.15),
+              color: AppColors.neonGreen.withValues(alpha: 0.15),
             ),
           ),
           child: Row(
@@ -1217,7 +1245,7 @@ class _InfoCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.12),
+          color: AppColors.neonGreen.withValues(alpha: 0.12),
         ),
       ),
       child: const Row(

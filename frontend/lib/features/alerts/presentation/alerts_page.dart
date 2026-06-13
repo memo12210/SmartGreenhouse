@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../greenhouse/presentation/greenhouse_controller.dart';
+import '../../greenhouse/presentation/selected_greenhouse_provider.dart';
 import '../domain/app_alert.dart';
 import 'alert_controller.dart';
 
@@ -42,6 +43,13 @@ class _AlertsPageState extends ConsumerState<AlertsPage> {
         return a.isAcknowledged ? 1 : -1;
       }
 
+      // Newest first by creation time. Fall back to id when timestamps are
+      // missing or equal so ordering stays stable.
+      final aTime = a.createdAt;
+      final bTime = b.createdAt;
+      if (aTime != null && bTime != null && aTime != bTime) {
+        return bTime.compareTo(aTime);
+      }
       return b.id.compareTo(a.id);
     });
 
@@ -103,7 +111,8 @@ class _AlertsPageState extends ConsumerState<AlertsPage> {
                 );
               }
 
-              final activeGreenhouse = greenhouses.first;
+              final activeGreenhouse =
+                  ref.watch(selectedGreenhouseProvider) ?? greenhouses.first;
               final alertsAsync = ref.watch(alertsProvider(activeGreenhouse.id));
 
               return alertsAsync.when(
@@ -838,6 +847,7 @@ class _AlertMetadata extends StatelessWidget {
     final field = alert.extraMetadata['field']?.toString();
     final operatorText = alert.extraMetadata['operator']?.toString();
     final threshold = alert.extraMetadata['threshold']?.toString();
+    final time = alert.createdAt;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -850,6 +860,7 @@ class _AlertMetadata extends StatelessWidget {
       ),
       child: Column(
         children: [
+          if (time != null) _MetadataRow(label: 'Time', value: _formatTime(time)),
           _MetadataRow(label: 'Current Value', value: valueText),
           if (field != null) _MetadataRow(label: 'Measured Field', value: field),
           if (operatorText != null && threshold != null)
@@ -861,6 +872,12 @@ class _AlertMetadata extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${time.year}-${two(time.month)}-${two(time.day)} '
+        '${two(time.hour)}:${two(time.minute)}';
   }
 }
 

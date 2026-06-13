@@ -105,7 +105,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: AppColors.neonGreen.withOpacity(0.8),
+                              color: AppColors.neonGreen.withValues(alpha: 0.8),
                               width: 3,
                             ),
                             borderRadius: BorderRadius.circular(28),
@@ -134,7 +134,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.65),
+                            color: Colors.black.withValues(alpha: 0.65),
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: const Text(

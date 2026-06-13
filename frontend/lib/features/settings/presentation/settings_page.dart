@@ -10,22 +10,13 @@ import '../../greenhouse/presentation/add_greenhouse_page.dart';
 import '../../greenhouse/presentation/greenhouse_controller.dart';
 import '../../greenhouse/presentation/greenhouse_selector_sheet.dart';
 import '../../greenhouse/presentation/selected_greenhouse_provider.dart';
+import '../data/system_status_service.dart';
 
-class SettingsPage extends ConsumerStatefulWidget {
+class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
-  ConsumerState<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends ConsumerState<SettingsPage> {
-  bool pushNotifications = true;
-  bool criticalAlerts = true;
-  bool dailySummary = false;
-  String temperatureUnit = 'Celsius';
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final greenhousesAsync = ref.watch(greenhousesProvider);
 
     return GradientScaffold(
@@ -54,6 +45,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     orElse: () => 0,
                   ) ??
                   0;
+
+              final systemStatusAsync = ref.watch(systemStatusProvider);
+              final backendValue = systemStatusAsync.maybeWhen(
+                data: (s) => s.backendOnline ? 'Online' : 'Offline',
+                orElse: () => '...',
+              );
+              final backendColor = systemStatusAsync.maybeWhen(
+                data: (s) =>
+                    s.backendOnline ? AppColors.neonGreen : Colors.redAccent,
+                orElse: () => AppColors.textGrey,
+              );
+              final modelValue = systemStatusAsync.maybeWhen(
+                data: (s) => s.modelLoaded ? 'Ready' : 'Not trained',
+                orElse: () => '...',
+              );
+              final modelColor = systemStatusAsync.maybeWhen(
+                data: (s) =>
+                    s.modelLoaded ? AppColors.neonGreen : Colors.orangeAccent,
+                orElse: () => AppColors.textGrey,
+              );
 
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -94,33 +105,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       Expanded(
                         child: _StatusCard(
                           title: 'Backend',
-                          value: 'Online',
+                          value: backendValue,
                           icon: Icons.cloud_done_rounded,
-                          color: AppColors.neonGreen,
+                          color: backendColor,
                         ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: _StatusCard(
-                          title: 'Database',
-                          value: 'Synced',
-                          icon: Icons.storage_rounded,
-                          color: AppColors.neonGreen,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatusCard(
-                          title: 'MQTT',
-                          value: 'Ready',
-                          icon: Icons.hub_rounded,
-                          color: AppColors.neonGreen,
+                          title: 'ML Model',
+                          value: modelValue,
+                          icon: Icons.psychology_rounded,
+                          color: modelColor,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -157,7 +153,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               greenhouse.id;
                         },
                         onDelete: () {
-                          _confirmDeleteGreenhouse(context, greenhouse);
+                          _confirmDeleteGreenhouse(context, ref, greenhouse);
                         },
                       ),
                     ),
@@ -180,75 +176,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   const SizedBox(height: 24),
 
                   _SectionTitle(
-                    title: 'Alert Preferences',
-                    subtitle: 'Control how the system notifies you.',
-                  ),
-                  const SizedBox(height: 14),
-
-                  _SwitchTile(
-                    title: 'Push Notifications',
-                    subtitle: 'Receive alerts when critical conditions occur.',
-                    icon: Icons.notifications_active_outlined,
-                    value: pushNotifications,
-                    onChanged: (value) {
-                      setState(() {
-                        pushNotifications = value;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _SwitchTile(
-                    title: 'Critical Alerts',
-                    subtitle: 'Always notify for frost, heat, battery and device risks.',
-                    icon: Icons.warning_amber_rounded,
-                    value: criticalAlerts,
-                    onChanged: (value) {
-                      setState(() {
-                        criticalAlerts = value;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _SwitchTile(
-                    title: 'Daily Summary',
-                    subtitle: 'Receive a daily greenhouse condition summary.',
-                    icon: Icons.summarize_rounded,
-                    value: dailySummary,
-                    onChanged: (value) {
-                      setState(() {
-                        dailySummary = value;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  _SectionTitle(
-                    title: 'Preferences',
-                    subtitle: 'Customize application display options.',
-                  ),
-                  const SizedBox(height: 14),
-
-                  _PreferenceSelector(
-                    title: 'Temperature Unit',
-                    subtitle: 'Current unit used in sensor readings.',
-                    icon: Icons.device_thermostat_rounded,
-                    value: temperatureUnit,
-                    options: const ['Celsius', 'Fahrenheit'],
-                    onChanged: (value) {
-                      setState(() {
-                        temperatureUnit = value;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  _SectionTitle(
                     title: 'Security',
                     subtitle: 'Account access and session control.',
                   ),
@@ -264,7 +191,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
                   const Center(
                     child: Text(
-                      'Smart Greenhouse v2.0.0',
+                      'Smart Greenhouse v1.0.0',
                       style: TextStyle(
                         color: AppColors.textGrey,
                         fontSize: 12,
@@ -290,7 +217,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  void _confirmDeleteGreenhouse(BuildContext context, Greenhouse greenhouse) {
+  void _confirmDeleteGreenhouse(
+    BuildContext context,
+    WidgetRef ref,
+    Greenhouse greenhouse,
+  ) {
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -414,7 +345,7 @@ class _SettingsHeader extends StatelessWidget {
             color: AppColors.surfaceDark,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.neonGreen.withOpacity(0.18),
+              color: AppColors.neonGreen.withValues(alpha: 0.18),
             ),
           ),
           child: const Icon(
@@ -446,11 +377,11 @@ class _ProfileCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.22),
+          color: AppColors.neonGreen.withValues(alpha: 0.22),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.neonGreen.withOpacity(0.08),
+            color: AppColors.neonGreen.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -462,7 +393,7 @@ class _ProfileCard extends StatelessWidget {
             width: 62,
             height: 62,
             decoration: BoxDecoration(
-              color: AppColors.neonGreen.withOpacity(0.14),
+              color: AppColors.neonGreen.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Icon(
@@ -564,7 +495,7 @@ class _StatusCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: color.withOpacity(0.18),
+          color: color.withValues(alpha: 0.18),
         ),
       ),
       child: Column(
@@ -617,7 +548,7 @@ class _GreenhouseCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: isSelected
-            ? AppColors.neonGreen.withOpacity(0.12)
+            ? AppColors.neonGreen.withValues(alpha: 0.12)
             : AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
@@ -631,7 +562,7 @@ class _GreenhouseCard extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: AppColors.neonGreen.withOpacity(0.14),
+                    color: AppColors.neonGreen.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(
@@ -697,7 +628,7 @@ class _EmptyGreenhouseCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.orangeAccent.withOpacity(0.18),
+          color: Colors.orangeAccent.withValues(alpha: 0.18),
         ),
       ),
       child: const Row(
@@ -747,7 +678,7 @@ class _OutlineActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppColors.neonGreen.withOpacity(0.15),
+              color: AppColors.neonGreen.withValues(alpha: 0.15),
             ),
           ),
           child: Row(
@@ -774,153 +705,6 @@ class _OutlineActionButton extends StatelessWidget {
   }
 }
 
-class _SwitchTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SwitchTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: AppColors.neonGreen,
-            size: 26,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textGrey,
-                    fontSize: 12,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            activeColor: AppColors.neonGreen,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreferenceSelector extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final String value;
-  final List<String> options;
-  final ValueChanged<String> onChanged;
-
-  const _PreferenceSelector({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: AppColors.neonGreen,
-            size: 26,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textGrey,
-                    fontSize: 12,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          DropdownButton<String>(
-            value: value,
-            dropdownColor: AppColors.surfaceDark,
-            underline: const SizedBox(),
-            iconEnabledColor: AppColors.neonGreen,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-            items: options
-                .map(
-                  (option) => DropdownMenuItem<String>(
-                    value: option,
-                    child: Text(option),
-                  ),
-                )
-                .toList(),
-            onChanged: (newValue) {
-              if (newValue == null) return;
-              onChanged(newValue);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _LogoutButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -942,7 +726,7 @@ class _LogoutButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.redAccent.withOpacity(0.25),
+              color: Colors.redAccent.withValues(alpha: 0.25),
             ),
           ),
           child: const Row(

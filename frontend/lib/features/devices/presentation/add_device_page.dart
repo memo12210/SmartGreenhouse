@@ -29,7 +29,10 @@ class _AddDevicePageState extends ConsumerState<AddDevicePage> {
   bool _isSaving = false;
 
   static const String _defaultDeviceType = 'ESP32';
-  static const String _defaultStatus = 'online';
+  // Devices start offline and are marked online by the backend once they
+  // actually report telemetry (via MQTT or REST). See backend telemetry
+  // ingestion. Hardcoding 'online' here would misreport connectivity.
+  static const String _defaultStatus = 'offline';
   static const String _defaultFirmwareVersion = '1.0.0';
 
   @override
@@ -130,11 +133,11 @@ class _AddDevicePageState extends ConsumerState<AddDevicePage> {
                 color: AppColors.surfaceDark,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: AppColors.neonGreen.withOpacity(0.18),
+                  color: AppColors.neonGreen.withValues(alpha: 0.18),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.neonGreen.withOpacity(0.06),
+                    color: AppColors.neonGreen.withValues(alpha: 0.06),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
                   ),
@@ -286,11 +289,11 @@ class _IntroCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.22),
+          color: AppColors.neonGreen.withValues(alpha: 0.22),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.neonGreen.withOpacity(0.08),
+            color: AppColors.neonGreen.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -302,7 +305,7 @@ class _IntroCard extends StatelessWidget {
             width: 62,
             height: 62,
             decoration: BoxDecoration(
-              color: AppColors.neonGreen.withOpacity(0.14),
+              color: AppColors.neonGreen.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Icon(
@@ -405,17 +408,17 @@ class _InputField extends StatelessWidget {
           color: AppColors.neonGreen,
         ),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.16),
+        fillColor: Colors.black.withValues(alpha: 0.16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: AppColors.neonGreen.withOpacity(0.14),
+            color: AppColors.neonGreen.withValues(alpha: 0.14),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: AppColors.neonGreen.withOpacity(0.14),
+            color: AppColors.neonGreen.withValues(alpha: 0.14),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -477,17 +480,17 @@ class _SerialNumberField extends StatelessWidget {
           tooltip: 'Scan QR Code',
         ),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.16),
+        fillColor: Colors.black.withValues(alpha: 0.16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: AppColors.neonGreen.withOpacity(0.14),
+            color: AppColors.neonGreen.withValues(alpha: 0.14),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: AppColors.neonGreen.withOpacity(0.14),
+            color: AppColors.neonGreen.withValues(alpha: 0.14),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -515,10 +518,10 @@ class _AutoConfigCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.14),
+        color: Colors.black.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.12),
+          color: AppColors.neonGreen.withValues(alpha: 0.12),
         ),
       ),
       child: const Row(
@@ -557,7 +560,7 @@ class _InfoCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.12),
+          color: AppColors.neonGreen.withValues(alpha: 0.12),
         ),
       ),
       child: const Row(

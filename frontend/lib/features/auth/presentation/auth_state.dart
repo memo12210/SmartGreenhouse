@@ -20,8 +20,3 @@ class Authenticated extends AuthState {
 class Unauthenticated extends AuthState {
   const Unauthenticated();
 }
-
-class AuthError extends AuthState {
-  final String message;
-  const AuthError(this.message);
-}

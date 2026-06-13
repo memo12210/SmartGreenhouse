@@ -9,6 +9,7 @@ class AppAlert {
   final bool isAcknowledged;
   final String? acknowledgedBy;
   final Map<String, dynamic> extraMetadata;
+  final DateTime? createdAt;
 
   const AppAlert({
     required this.id,
@@ -21,6 +22,7 @@ class AppAlert {
     required this.isAcknowledged,
     required this.acknowledgedBy,
     required this.extraMetadata,
+    required this.createdAt,
   });
 
   factory AppAlert.fromJson(Map<String, dynamic> json) {
@@ -37,6 +39,8 @@ class AppAlert {
       extraMetadata: json['extra_metadata'] is Map<String, dynamic>
           ? json['extra_metadata'] as Map<String, dynamic>
           : {},
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '')
+          ?.toLocal(),
     );
   }
 

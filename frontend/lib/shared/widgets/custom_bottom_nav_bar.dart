@@ -18,14 +18,14 @@ class CustomBottomNavBar extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 16),
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withOpacity(0.96),
+        color: AppColors.surfaceDark.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.12),
+          color: AppColors.neonGreen.withValues(alpha: 0.12),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withValues(alpha: 0.35),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -104,7 +104,7 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.neonGreen.withOpacity(0.14)
+                ? AppColors.neonGreen.withValues(alpha: 0.14)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/navigation/app_navigation_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../devices/presentation/device_controller.dart';
@@ -194,19 +195,26 @@ class _DashboardHeader extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceDark,
+        Material(
+          color: AppColors.surfaceDark,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColors.neonGreen.withOpacity(0.18),
+            onTap: AppNavigationController.goToAlerts,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.neonGreen.withValues(alpha: 0.18),
+                ),
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                color: AppColors.neonGreen,
+              ),
             ),
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: AppColors.neonGreen,
           ),
         ),
       ],
@@ -241,11 +249,11 @@ class _GreenhouseHealthCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: statusColor.withOpacity(0.25),
+          color: statusColor.withValues(alpha: 0.25),
         ),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.08),
+            color: statusColor.withValues(alpha: 0.08),
             blurRadius: 26,
             offset: const Offset(0, 12),
           ),
@@ -288,7 +296,7 @@ class _GreenhouseHealthCard extends StatelessWidget {
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -470,7 +478,7 @@ class _MainTemperatureCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.neonGreen.withOpacity(0.18),
+          color: AppColors.neonGreen.withValues(alpha: 0.18),
         ),
       ),
       child: Row(
@@ -561,7 +569,7 @@ class _SensorMetricCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: color.withOpacity(0.16),
+          color: color.withValues(alpha: 0.16),
         ),
       ),
       child: Column(
@@ -610,8 +618,8 @@ class _BatteryStatusCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isHealthy
-              ? AppColors.neonGreen.withOpacity(0.18)
-              : Colors.redAccent.withOpacity(0.22),
+              ? AppColors.neonGreen.withValues(alpha: 0.18)
+              : Colors.redAccent.withValues(alpha: 0.22),
         ),
       ),
       child: Row(
@@ -674,7 +682,7 @@ class _TodayRecommendationCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: Colors.orangeAccent.withOpacity(0.18),
+          color: Colors.orangeAccent.withValues(alpha: 0.18),
         ),
       ),
       child: Row(
@@ -808,7 +816,7 @@ class _NoDeviceCard extends StatelessWidget {
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: Colors.orangeAccent.withOpacity(0.22),
+          color: Colors.orangeAccent.withValues(alpha: 0.22),
         ),
       ),
       child: Row(
@@ -900,7 +908,7 @@ class _MiniStat extends StatelessWidget {
         vertical: 14,
       ),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.16),
+        color: Colors.black.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -978,7 +986,7 @@ class _IconBadge extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Icon(

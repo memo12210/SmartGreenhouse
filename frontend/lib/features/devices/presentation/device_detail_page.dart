@@ -290,7 +290,7 @@ class _MetricChip extends StatelessWidget {
             border: Border.all(
               color: isSelected
                   ? AppColors.neonGreen
-                  : AppColors.neonGreen.withOpacity(0.12),
+                  : AppColors.neonGreen.withValues(alpha: 0.12),
             ),
           ),
           child: Text(
@@ -341,7 +341,7 @@ class _TrendChartCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: metricInfo.color.withOpacity(0.18)),
+        border: Border.all(color: metricInfo.color.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,7 +379,7 @@ class _TrendChartCard extends StatelessWidget {
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white.withValues(alpha: 0.06),
                       strokeWidth: 1,
                     );
                   },
@@ -466,7 +466,7 @@ class _TrendChartCard extends StatelessWidget {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: metricInfo.color.withOpacity(0.12),
+                      color: metricInfo.color.withValues(alpha: 0.12),
                     ),
                   ),
                 ],
@@ -597,7 +597,7 @@ class _TrendStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.14),
+        color: Colors.black.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -647,7 +647,7 @@ class _EmptyHistoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
+        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.2)),
       ),
       child: const Row(
         children: [
@@ -731,10 +731,10 @@ class _DeviceStatusCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: statusColor.withOpacity(0.24)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.24)),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.08),
+            color: statusColor.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -746,7 +746,7 @@ class _DeviceStatusCard extends StatelessWidget {
             width: 62,
             height: 62,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.14),
+              color: statusColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(Icons.sensors_rounded, color: statusColor, size: 34),
@@ -779,7 +779,7 @@ class _DeviceStatusCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
+              color: statusColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -813,7 +813,7 @@ class _MainTemperatureCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.neonGreen.withOpacity(0.18)),
+        border: Border.all(color: AppColors.neonGreen.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
@@ -821,7 +821,7 @@ class _MainTemperatureCard extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: AppColors.neonGreen.withOpacity(0.14),
+              color: AppColors.neonGreen.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Icon(
@@ -883,7 +883,7 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: color.withOpacity(0.16)),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -929,7 +929,7 @@ class _BatteryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: color.withOpacity(0.18)),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
@@ -985,7 +985,7 @@ class _InfoPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.neonGreen.withOpacity(0.12)),
+        border: Border.all(color: AppColors.neonGreen.withValues(alpha: 0.12)),
       ),
       child: Column(
         children: [
@@ -1200,7 +1200,7 @@ class _EmptyTelemetryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
+        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.2)),
       ),
       child: const Row(
         children: [
@@ -1230,7 +1230,7 @@ class _ErrorCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.redAccent.withOpacity(0.18)),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.18)),
       ),
       child: Text(message, style: const TextStyle(color: Colors.redAccent)),
     );
@@ -1386,8 +1386,8 @@ class _AlertRuleCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: rule.isEnabled
-              ? severityData.color.withOpacity(0.18)
-              : AppColors.textGrey.withOpacity(0.12),
+              ? severityData.color.withValues(alpha: 0.18)
+              : AppColors.textGrey.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -1398,7 +1398,7 @@ class _AlertRuleCard extends ConsumerWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: severityData.color.withOpacity(0.13),
+                  color: severityData.color.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
@@ -1602,7 +1602,7 @@ class _SmallRuleActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withOpacity(0.14),
+      color: Colors.black.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1641,7 +1641,7 @@ class _RuleStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.13),
+        color: color.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1666,7 +1666,7 @@ class _EmptyAlertRulesCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.neonGreen.withOpacity(0.12)),
+        border: Border.all(color: AppColors.neonGreen.withValues(alpha: 0.12)),
       ),
       child: const Row(
         children: [

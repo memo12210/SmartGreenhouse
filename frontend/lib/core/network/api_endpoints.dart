@@ -1,9 +1,17 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  // Use 10.0.2.2 for Android Emulator to connect to host's localhost
-  // Use localhost or your computer's IP for other platforms
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  // Configured at build/run time, e.g.:
+  //   flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000
+  //   flutter build apk --dart-define=API_BASE_URL=https://api.example.com
+  //
+  // The default targets the host machine's localhost from the Android
+  // emulator (10.0.2.2). Real devices, iOS, web, and production MUST override
+  // this with a reachable host — and should use HTTPS.
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000',
+  );
   static const String apiV1 = '/api/v1';
 
   // Auth
@@ -43,4 +51,12 @@ class ApiEndpoints {
 
   static const String alertRules = '$apiV1/alerts/rules';
   static String alertRule(String ruleId) => '$apiV1/alerts/rules/$ruleId';
+
+  // ML / Insights
+  static String greenhousePredictions(String greenhouseId) =>
+      '$apiV1/ml/predictions/greenhouse/$greenhouseId';
+
+  // Health / status
+  static const String health = '/health';
+  static const String mlHealth = '$apiV1/ml/health';
 }

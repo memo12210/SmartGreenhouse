@@ -7,7 +7,10 @@ import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../core/storage/secure_storage.dart';
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
+// Explicit type annotation to break the top-level inference cycle:
+// authRepository -> dio -> authController -> authRepository.
+final Provider<AuthRepository> authRepositoryProvider =
+    Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     ref.read(dioProvider),
     ref.read(secureStorageProvider),

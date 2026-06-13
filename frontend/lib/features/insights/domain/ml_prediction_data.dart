@@ -13,7 +13,12 @@ class MlPredictionData {
     return MlPredictionData(
       yieldKgPerM2: (json['yield_kg_per_m2'] as num).toDouble(),
       modelVersion: json['model_version']?.toString() ?? 'Unknown',
-      predictionTimestamp: json['prediction_timestamp']?.toString() ?? '',
+      // The persisted prediction history endpoint returns `timestamp`, while
+      // the on-demand /predict endpoint returns `prediction_timestamp`.
+      // Accept either so the model works with both shapes.
+      predictionTimestamp: (json['timestamp'] ?? json['prediction_timestamp'])
+              ?.toString() ??
+          '',
     );
   }
 }

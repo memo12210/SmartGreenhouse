@@ -34,7 +34,7 @@ class GreenhouseSelectorSheet extends ConsumerWidget {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: AppColors.textGrey.withOpacity(0.4),
+                    color: AppColors.textGrey.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
@@ -142,8 +142,8 @@ class _GreenhouseOption extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? AppColors.neonGreen.withOpacity(0.12)
-          : Colors.black.withOpacity(0.14),
+          ? AppColors.neonGreen.withValues(alpha: 0.12)
+          : Colors.black.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -156,7 +156,7 @@ class _GreenhouseOption extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: AppColors.neonGreen.withOpacity(0.14),
+                  color: AppColors.neonGreen.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(

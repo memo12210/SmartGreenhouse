@@ -9,37 +9,37 @@ final insightsServiceProvider = Provider<InsightsService>((ref) {
   return InsightsService(ref.read(dioProvider));
 });
 
+/// Latest backend ML yield prediction for a specific greenhouse.
+///
+/// Returns `null` when the backend has not produced any prediction yet (e.g.
+/// the model is untrained, the greenhouse metadata is incomplete, or no
+/// telemetry has been received for the prediction window).
+final greenhousePredictionProvider =
+    FutureProvider.autoDispose.family<MlPredictionData?, String>(
+  (ref, greenhouseId) {
+    return ref.read(insightsServiceProvider).getLatestPrediction(greenhouseId);
+  },
+);
+
 class InsightsService {
   final Dio _dio;
 
   InsightsService(this._dio);
 
-  Future<MlPredictionData> getPrediction() async {
-    final response = await _dio.post(
-      '/api/v1/ml/predict',
-      data: {
-        "greenhouse_id": 1,
-        "crop_type": "Tomato",
-        "variety": "Cherry",
-        "planting_date": "2026-03-01",
-        "harvest_date": "2026-06-15",
-        "days_to_maturity": 106,
-        "avg_temperature_C": 24.5,
-        "min_temperature_C": 18.0,
-        "max_temperature_C": 30.0,
-        "humidity_percent": 65.0,
-        "co2_ppm": 450.0,
-        "light_intensity_lux": 8200.0,
-        "photoperiod_hours": 12.0,
-        "irrigation_mm": 5.5,
-        "fertilizer_N_kg_ha": 120.0,
-        "fertilizer_P_kg_ha": 60.0,
-        "fertilizer_K_kg_ha": 80.0,
-        "pest_severity": 1.0,
-        "soil_pH": 6.5
-      },
+  /// Fetches the most recent persisted prediction for [greenhouseId].
+  ///
+  /// The backend's ML worker periodically runs the yield model against each
+  /// greenhouse's real metadata and aggregated telemetry and stores the
+  /// result. We read that history (newest first) and surface the latest row.
+  Future<MlPredictionData?> getLatestPrediction(String greenhouseId) async {
+    final response = await _dio.get(
+      ApiEndpoints.greenhousePredictions(greenhouseId),
+      queryParameters: {'limit': 1},
     );
 
-    return MlPredictionData.fromJson(response.data);
+    final data = response.data as List<dynamic>;
+    if (data.isEmpty) return null;
+
+    return MlPredictionData.fromJson(data.first as Map<String, dynamic>);
   }
 }
