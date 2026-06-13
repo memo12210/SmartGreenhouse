@@ -10,6 +10,8 @@ import 'features/auth/presentation/auth_state.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/dashboard/presentation/main_navigation_wrapper.dart';
 import 'features/notifications/presentation/notification_controller.dart';
+import 'features/kvkk/data/kvkk_service.dart';
+import 'features/kvkk/presentation/kvkk_consent_page.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -91,6 +93,37 @@ class GreenhouseApp extends ConsumerStatefulWidget {
 
 class _GreenhouseAppState extends ConsumerState<GreenhouseApp> {
   bool _hasRegisteredFcmToken = false;
+  bool _isKvkkLoading = true;
+  bool _isKvkkAccepted = false;
+
+  final KvkkService _kvkkService = KvkkService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKvkkState();
+  }
+
+  Future<void> _loadKvkkState() async {
+    final accepted = await _kvkkService.isAccepted();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isKvkkAccepted = accepted;
+      _isKvkkLoading = false;
+    });
+  }
+
+  Future<void> _acceptKvkk() async {
+    await _kvkkService.accept();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isKvkkAccepted = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +152,20 @@ class _GreenhouseAppState extends ConsumerState<GreenhouseApp> {
   }
 
   Widget _getHome(AuthState state) {
+    if (_isKvkkLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (!_isKvkkAccepted) {
+      return KvkkConsentPage(
+        onAccepted: _acceptKvkk,
+      );
+    }
+
     if (state is Authenticated) {
       return const MainNavigationWrapper();
     }

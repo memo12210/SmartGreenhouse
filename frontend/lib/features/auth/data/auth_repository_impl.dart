@@ -25,14 +25,22 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final response = await _dio.post(
         ApiEndpoints.login,
-        data: FormData.fromMap({
+        data: {
           'username': email,
           'password': password,
-        }),
+          'grant_type': 'password',
+        },
+        options: Options(contentType: Headers.formUrlEncodedContentType),
       );
 
-      await _storage.write(key: 'access_token', value: response.data['access_token']);
-      await _storage.write(key: 'refresh_token', value: response.data['refresh_token']);
+      await _storage.write(
+        key: 'access_token',
+        value: response.data['access_token'],
+      );
+      await _storage.write(
+        key: 'refresh_token',
+        value: response.data['refresh_token'],
+      );
     } on DioException catch (e) {
       final message = e.response?.data?['detail'] ?? 'Login failed';
       throw Exception(message);
@@ -40,16 +48,20 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<User> register(String email, String password, {String? fullName}) async {
+  Future<User> register(
+    String email,
+    String password, {
+    String? fullName,
+  }) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.register,
-        data: {
-          'email': email,
-          'password': password,
-          'full_name': fullName,
-        },
-      );
+      final data = {
+        'email': email,
+        'password': password,
+        if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+      };
+
+      final response = await _dio.post(ApiEndpoints.register, data: data);
+
       return User.fromJson(response.data);
     } on DioException catch (e) {
       final message = e.response?.data?['detail'] ?? 'Registration failed';
@@ -89,7 +101,13 @@ class AuthRepositoryImpl implements AuthRepository {
       queryParameters: {'refresh_token': refreshToken},
     );
 
-    await _storage.write(key: 'access_token', value: response.data['access_token']);
-    await _storage.write(key: 'refresh_token', value: response.data['refresh_token']);
+    await _storage.write(
+      key: 'access_token',
+      value: response.data['access_token'],
+    );
+    await _storage.write(
+      key: 'refresh_token',
+      value: response.data['refresh_token'],
+    );
   }
 }

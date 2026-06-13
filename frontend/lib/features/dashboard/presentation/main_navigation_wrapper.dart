@@ -21,7 +21,6 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   @override
   void initState() {
     super.initState();
-
     AppNavigationController.targetTabIndex.addListener(_handleTargetTabChange);
   }
 
@@ -34,13 +33,8 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   void _handleTargetTabChange() {
     final targetIndex = AppNavigationController.targetTabIndex.value;
 
-    if (targetIndex == null) {
-      return;
-    }
-
-    if (!mounted) {
-      return;
-    }
+    if (targetIndex == null) return;
+    if (!mounted) return;
 
     setState(() {
       _currentIndex = targetIndex;
