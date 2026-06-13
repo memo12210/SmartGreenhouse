@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 from typing import Dict, Optional
@@ -58,5 +59,8 @@ class PushNotificationService:
             ),
         )
 
-        response = messaging.send(message)
+        # messaging.send() is a blocking network call; run it in a worker thread
+        # so it does not stall the asyncio event loop (telemetry ingest + all
+        # concurrent requests share that loop).
+        response = await asyncio.to_thread(messaging.send, message)
         return response

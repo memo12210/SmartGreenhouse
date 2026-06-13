@@ -14,6 +14,21 @@ class MQTTService:
         self.client: Optional[MQTTClient] = None
         self.connected = False
         self.subscriptions: Dict[str, Callable[[str, Any], asyncio.Future]] = {}
+        # Strong references to in-flight handler tasks. Without this the event
+        # loop only keeps a weak reference and tasks may be garbage-collected
+        # mid-execution; it also lets us surface exceptions they raise.
+        self._tasks: set = set()
+
+    def _track_task(self, task: asyncio.Task) -> None:
+        self._tasks.add(task)
+        task.add_done_callback(self._on_task_done)
+
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        self._tasks.discard(task)
+        if not task.cancelled():
+            exc = task.exception()
+            if exc is not None:
+                logger.error(f"MQTT message handler task failed: {exc}")
 
     def _on_connect(self, client, flags, rc, properties):
         logger.info("Connected to MQTT Broker")
@@ -29,7 +44,7 @@ class MQTTService:
             if self._topic_matches(sub_topic, topic):
                 try:
                     data = json.loads(payload.decode())
-                    asyncio.create_task(callback(topic, data))
+                    self._track_task(asyncio.create_task(callback(topic, data)))
                 except Exception as e:
                     logger.error(f"Error processing MQTT message on {topic}: {e}")
 
@@ -70,9 +85,10 @@ class MQTTService:
             self.client.subscribe(topic)
 
     async def publish(self, topic: str, payload: Any, qos: int = 1, retain: bool = False):
-        if not self.connected:
-            logger.error(f"Cannot publish to {topic}, MQTT not connected")
-            return
+        # Raise instead of silently dropping so callers can react (e.g. mark a
+        # device command as failed rather than falsely reporting it as sent).
+        if not self.connected or self.client is None:
+            raise ConnectionError(f"Cannot publish to {topic}: MQTT not connected")
 
         message = json.dumps(payload)
         self.client.publish(topic, message, qos=qos, retain=retain)

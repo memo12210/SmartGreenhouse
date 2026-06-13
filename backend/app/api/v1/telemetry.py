@@ -9,6 +9,7 @@ from app.domain.device import Device
 from app.schemas.telemetry import TelemetryRead, TelemetryCreate
 from app.services.telemetry import TelemetryService
 from app.repositories.telemetry import TelemetryRepository
+from app.core.observability import TELEMETRY_INGESTED
 
 router = APIRouter()
 
@@ -29,13 +30,23 @@ async def get_telemetry(
 async def ingest_telemetry(
     telemetry_in: TelemetryCreate,
     db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
 ):
-    # This could be used for REST-based telemetry ingestion from some devices
-    # We need to find the greenhouse_id to evaluate alerts
+    # REST-based telemetry ingestion. Requires authentication and ownership of
+    # the target device so that arbitrary callers cannot inject sensor data for
+    # devices they do not own (data injection / unsafe automation).
     from app.repositories.device import DeviceRepository
+    from app.repositories.greenhouse import GreenhouseRepository
+
     device_repo = DeviceRepository(db)
     device = await device_repo.get(telemetry_in.device_id)
     if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    greenhouse_repo = GreenhouseRepository(db)
+    greenhouse = await greenhouse_repo.get(device.greenhouse_id)
+    if not greenhouse or greenhouse.owner_id != current_user.id:
+        # Do not leak existence of devices the caller does not own.
         raise HTTPException(status_code=404, detail="Device not found")
 
     from app.repositories.alert import AlertRepository, AlertRuleRepository
@@ -49,4 +60,6 @@ async def ingest_telemetry(
     service = TelemetryService(TelemetryRepository(db), alert_engine)
     result = await service.ingest_telemetry(telemetry_in, greenhouse_id=device.greenhouse_id)
     await db.commit()
+
+    TELEMETRY_INGESTED.labels(device_type=device.device_type).inc()
     return result

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from jose import jwt, JWTError
@@ -22,6 +23,10 @@ class AuthService:
     async def create_tokens(self, user: User) -> Token:
         access_token = create_access_token(user.id)
         refresh_token_str = create_refresh_token(user.id)
+
+        # Opportunistically prune this user's stale (expired/revoked) tokens so
+        # the refresh_tokens table stays bounded across repeated logins.
+        await self.token_repo.delete_stale_tokens(user.id)
 
         # Save refresh token to DB
         expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)

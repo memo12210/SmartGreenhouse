@@ -48,4 +48,14 @@ class DiscoveryService:
             self._task = asyncio.create_task(self.broadcast_discovery())
             logger.info("Backend Discovery Service started")
 
+    async def stop(self):
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+            logger.info("Backend Discovery Service stopped")
+
 discovery_service = DiscoveryService()

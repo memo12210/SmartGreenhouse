@@ -11,11 +11,18 @@ class AlertRepository(BaseRepository[Alert]):
     def __init__(self, session):
         super().__init__(Alert, session)
 
-    async def get_by_greenhouse(self, greenhouse_id: uuid.UUID) -> List[Alert]:
+    async def get_by_greenhouse(
+        self,
+        greenhouse_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[Alert]:
         query = (
             select(Alert)
             .where(Alert.greenhouse_id == greenhouse_id)
             .order_by(desc(Alert.created_at))
+            .offset(skip)
+            .limit(limit)
         )
         result = await self.session.execute(query)
         return list(result.scalars().all())

@@ -1,8 +1,8 @@
 import uuid
 from typing import Optional, List
-from app.domain.user import User
+from app.domain.user import User, UserRole
 from app.repositories.user import UserRepository
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserRegister, UserSelfUpdate
 from app.core.security import get_password_hash
 
 
@@ -16,19 +16,21 @@ class UserService:
     async def get_user_by_email(self, email: str) -> Optional[User]:
         return await self.user_repo.get_by_email(email)
 
-    async def create_user(self, user_in: UserCreate) -> User:
+    async def create_user(self, user_in: UserRegister) -> User:
+        # Public registration always creates a least-privileged, active account.
+        # role/is_active are intentionally NOT taken from the request body.
         user = User(
             email=user_in.email,
             hashed_password=get_password_hash(user_in.password),
             full_name=user_in.full_name,
-            role=user_in.role,
-            is_active=user_in.is_active,
+            role=UserRole.VIEWER,
+            is_active=True,
         )
         created_user = await self.user_repo.create(user)
         await self.user_repo.commit()
         return created_user
 
-    async def update_user(self, user_id: uuid.UUID, user_in: UserUpdate) -> Optional[User]:
+    async def update_user(self, user_id: uuid.UUID, user_in: UserSelfUpdate) -> Optional[User]:
         db_user = await self.user_repo.get(user_id)
         if not db_user:
             return None

@@ -3,6 +3,7 @@ from typing import AsyncGenerator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -23,21 +24,34 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
     token: str = Depends(reusable_oauth2)
 ) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         token_data = TokenData(**payload)
-    except (JWTError, Exception):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
+    except (JWTError, ValidationError):
+        raise credentials_exception
+
+    # Only access tokens may authenticate requests; refresh tokens (7-day TTL)
+    # must not be usable as bearer credentials.
+    if token_data.type != "access" or not token_data.sub:
+        raise credentials_exception
+
+    try:
+        user_id = uuid.UUID(token_data.sub)
+    except (ValueError, TypeError):
+        # Malformed subject claim -> reject, don't 500.
+        raise credentials_exception
 
     user_repo = UserRepository(db)
-    user = await user_repo.get(uuid.UUID(token_data.sub))
+    user = await user_repo.get(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise credentials_exception
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user

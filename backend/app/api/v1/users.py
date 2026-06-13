@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.domain.user import User, UserRole
-from app.schemas.user import UserRead, UserUpdate
+from app.schemas.user import UserRead, UserSelfUpdate
 from app.services.user import UserService
 from app.repositories.user import UserRepository
 
@@ -18,7 +18,7 @@ async def read_user_me(
 
 @router.patch("/me", response_model=UserRead)
 async def update_user_me(
-    user_in: UserUpdate,
+    user_in: UserSelfUpdate,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ):
