@@ -12,6 +12,15 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
+# Use the application's DATABASE_URL (assembled from the POSTGRES_* env vars) as
+# the single source of truth, overriding the placeholder in alembic.ini. The
+# '%%' escaping protects ConfigParser interpolation from any '%' in the password.
+from app.core.config import settings
+
+config.set_main_option(
+    "sqlalchemy.url", str(settings.DATABASE_URL).replace("%", "%%")
+)
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
