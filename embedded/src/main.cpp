@@ -6,8 +6,9 @@
 #include "system_context.h"
 #include "sensor_manager.h"
 #include "dht_sensor_impl.h"
-#include "ldr_sensor_impl.h"
+#include "bh1750_sensor_impl.h"
 #include "mq135_sensor_impl.h"
+#include "soil_moisture_sensor_impl.h"
 #include "discovery_service.h"
 #include "constants.h"
 
@@ -15,8 +16,9 @@ using namespace Greenhouse;
 
 // Global Instances
 DHTSensorImpl dhtSensor(Constants::DHT_PIN, 22); // DHT22
-LDRSensorImpl ldrSensor(32); // Using GPIO 32 for LDR
+BH1750SensorImpl bh1750Sensor(Constants::BH1750_SDA_PIN, Constants::BH1750_SCL_PIN);
 MQ135SensorImpl mq135Sensor(Constants::MQ135_PIN);
+SoilMoistureSensorImpl soilMoistureSensor(Constants::SOIL_MOISTURE_PIN);
 
 void setup() {
     Serial.begin(115200);
@@ -53,8 +55,9 @@ void setup() {
 
     // Setup Sensors
     SensorManager::getInstance().addSensor(&dhtSensor);
-    SensorManager::getInstance().addSensor(&ldrSensor);
+    SensorManager::getInstance().addSensor(&bh1750Sensor);
     SensorManager::getInstance().addSensor(&mq135Sensor);
+    SensorManager::getInstance().addSensor(&soilMoistureSensor);
     SensorManager::getInstance().begin(Constants::DELAY_MS);
 
     LOG_INFO("Initialization complete. Entering state machine loop.");

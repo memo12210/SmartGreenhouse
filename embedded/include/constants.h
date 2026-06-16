@@ -8,7 +8,12 @@ namespace Greenhouse::Constants {
     constexpr uint32_t DELAY_MS = 10000; // 10 seconds of delay between each `loop()`
 
     constexpr uint8_t DHT_PIN = 4;
-    constexpr uint8_t MQ135_PIN = 34;
+    constexpr uint8_t MQ135_PIN = 35;
+    constexpr uint8_t SOIL_MOISTURE_PIN = 34;
+
+    // BH1750 ambient light sensor (I2C)
+    constexpr uint8_t BH1750_SDA_PIN = 21;
+    constexpr uint8_t BH1750_SCL_PIN = 22;
 
     constexpr char WIFI_SSID[] = "";
     constexpr char WIFI_PASSWORD[] = "";
