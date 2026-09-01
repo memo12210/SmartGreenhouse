@@ -1,387 +1,183 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'core/constants.dart';
-import 'pages/dashboard_page.dart';
-import 'widgets/bottom_nav_bar.dart';
-import 'pages/analytics_page.dart';
-import 'pages/settings_page.dart';
-import 'pages/alerts_page.dart';
-import 'pages/add_greenhouse_page.dart';
-import 'pages/scan_device_page.dart';
-import 'core/models.dart';
-import 'core/storage.dart';
-import 'core/mqtt_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  runApp(const GreenhouseApp());
+import 'core/navigation/app_navigation_controller.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/auth_controller.dart';
+import 'features/auth/presentation/auth_state.dart';
+import 'features/auth/presentation/login_page.dart';
+import 'features/dashboard/presentation/main_navigation_wrapper.dart';
+import 'features/notifications/presentation/notification_controller.dart';
+import 'features/kvkk/data/kvkk_service.dart';
+import 'features/kvkk/presentation/kvkk_consent_page.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+
+  debugPrint('Background notification received: ${message.messageId}');
+  debugPrint('Background notification data: ${message.data}');
 }
 
-class GreenhouseApp extends StatelessWidget {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  await _setupFirebaseMessaging();
+
+  runApp(
+    const ProviderScope(
+      child: GreenhouseApp(),
+    ),
+  );
+}
+
+Future<void> _setupFirebaseMessaging() async {
+  final messaging = FirebaseMessaging.instance;
+
+  final settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  debugPrint('Notification permission status: ${settings.authorizationStatus}');
+
+  final token = await messaging.getToken();
+  debugPrint('FCM TOKEN: $token');
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    debugPrint('Foreground notification received.');
+    debugPrint('Title: ${message.notification?.title}');
+    debugPrint('Body: ${message.notification?.body}');
+    debugPrint('Data: ${message.data}');
+  });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    debugPrint('Notification opened.');
+    debugPrint('Data: ${message.data}');
+
+    final type = message.data['type'];
+
+    if (type == 'greenhouse_alert') {
+      AppNavigationController.goToAlerts();
+    }
+  });
+
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+
+  if (initialMessage != null) {
+    debugPrint('App opened from terminated notification.');
+    debugPrint('Initial message data: ${initialMessage.data}');
+
+    final type = initialMessage.data['type'];
+
+    if (type == 'greenhouse_alert') {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        AppNavigationController.goToAlerts();
+      });
+    }
+  }
+}
+
+class GreenhouseApp extends ConsumerStatefulWidget {
   const GreenhouseApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.transparent,
-      ),
-      home: const MainNavigationWrapper(),
-    );
-  }
+  ConsumerState<GreenhouseApp> createState() => _GreenhouseAppState();
 }
 
-class MainNavigationWrapper extends StatefulWidget {
-  const MainNavigationWrapper({super.key});
+class _GreenhouseAppState extends ConsumerState<GreenhouseApp> {
+  bool _hasRegisteredFcmToken = false;
+  bool _isKvkkLoading = true;
+  bool _isKvkkAccepted = false;
+
+  final KvkkService _kvkkService = KvkkService();
 
   @override
-  State<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
-}
-
-class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
-  void _showQuickActionsSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-          decoration: const BoxDecoration(
-            color: Color(0xFF111611),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  "Quick Actions",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  "Choose a quick action for your greenhouse system",
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-                const SizedBox(height: 22),
-
-                _buildQuickActionTile(
-                  icon: Icons.qr_code_scanner,
-                  title: "Scan New Device",
-                  subtitle: "Connect a new ESP32 using QR code",
-                  onTap: () async {
-                    Navigator.pop(context);
-                    // Small delay to prevent mouse tracker assertion on some platforms (like Linux)
-                    await Future.delayed(Duration.zero);
-                    if (!context.mounted) return;
-
-                    final scannedCode = await Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ScanDevicePage()),
-                    );
-
-                    if (scannedCode == null || !context.mounted) return;
-
-                    await _assignDeviceToGreenhouse(scannedCode);
-                  },
-                ),
-
-                _buildQuickActionTile(
-                  icon: Icons.eco_outlined,
-                  title: "Add Greenhouse",
-                  subtitle: "Create a new greenhouse profile",
-                  onTap: () async {
-                    Navigator.pop(context);
-                    // Small delay to prevent mouse tracker assertion on some platforms (like Linux)
-                    await Future.delayed(Duration.zero);
-                    if (!context.mounted) return;
-
-                    final result = await Navigator.push<Greenhouse>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddGreenhousePage(),
-                      ),
-                    );
-
-                    if (result != null && context.mounted) {
-                      final mapping = await Storage.getGreenhousesDevicesMap();
-                      await MqttService.publishGreenhouses(mapping);
-
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Greenhouse added: ${result.name} (${result.id}) and synced to MQTT"),
-                            backgroundColor: AppColors.neonGreen,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                ),
-
-                _buildQuickActionTile(
-                  icon: Icons.developer_board,
-                  title: "Add Device Manually",
-                  subtitle: "Register device ID without scanning",
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showManualDeviceDialog();
-                  },
-                ),
-
-                _buildQuickActionTile(
-                  icon: Icons.tune,
-                  title: "Set Thresholds",
-                  subtitle: "Configure temperature and humidity limits",
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _currentIndex = 3;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  void initState() {
+    super.initState();
+    _loadKvkkState();
   }
 
-  Widget _buildQuickActionTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.neonGreen.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: AppColors.neonGreen, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white38,
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Future<void> _loadKvkkState() async {
+    final accepted = await _kvkkService.isAccepted();
 
-  Future<void> _assignDeviceToGreenhouse(String deviceId) async {
     if (!mounted) return;
-    
-    final greenhouses = await Storage.loadGreenhouses();
-    if (greenhouses.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("No greenhouse found. Add one first."),
-            backgroundColor: Colors.orangeAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return;
+
+    setState(() {
+      _isKvkkAccepted = accepted;
+      _isKvkkLoading = false;
+    });
+  }
+
+  Future<void> _acceptKvkk() async {
+    await _kvkkService.accept();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isKvkkAccepted = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+
+    if (authState is Authenticated && !_hasRegisteredFcmToken) {
+      _hasRegisteredFcmToken = true;
+
+      Future.microtask(() async {
+        await ref
+            .read(notificationControllerProvider)
+            .registerCurrentDeviceToken();
+      });
     }
 
-    final selected = await showDialog<Greenhouse>(
-      context: context,
-      builder: (dialogCtx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF111611),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text('Select Greenhouse', style: TextStyle(color: Colors.white)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: greenhouses.length,
-              itemBuilder: (context, index) {
-                final g = greenhouses[index];
-                return ListTile(
-                  title: Text(g.name, style: const TextStyle(color: Colors.white)),
-                  subtitle: Text(g.id, style: const TextStyle(color: Colors.white54)),
-                  onTap: () => Navigator.pop(dialogCtx, g),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-            ),
-          ],
-        );
-      },
+    if (authState is! Authenticated && _hasRegisteredFcmToken) {
+      _hasRegisteredFcmToken = false;
+    }
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Smart Greenhouse',
+      theme: AppTheme.darkTheme,
+      home: _getHome(authState),
     );
+  }
 
-    if (selected == null || !mounted) return;
-
-    await Storage.addDeviceToGreenhouse(selected.id, deviceId);
-    final mapping = await Storage.getGreenhousesDevicesMap();
-    await MqttService.publishGreenhouses(mapping);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Device added to ${selected.name} and synced to MQTT"),
-          backgroundColor: AppColors.neonGreen,
-          behavior: SnackBarBehavior.floating,
+  Widget _getHome(AuthState state) {
+    if (_isKvkkLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }
-  }
 
-  void _showManualDeviceDialog() {
-    final TextEditingController controller = TextEditingController();
+    if (!_isKvkkAccepted) {
+      return KvkkConsentPage(
+        onAccepted: _acceptKvkk,
+      );
+    }
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1A1F1A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: const Text(
-            "Add Device Manually",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: TextField(
-            controller: controller,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: "Enter device ID (MAC address)",
-              hintStyle: const TextStyle(color: Colors.white24),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                "Cancel",
-                style: TextStyle(color: Colors.white54),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.neonGreen,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                final deviceId = controller.text.trim();
-                if (deviceId.isEmpty) return;
-                Navigator.pop(dialogContext);
-                _assignDeviceToGreenhouse(deviceId);
-              },
-              child: const Text("Add"),
-            ),
-          ],
-        );
-      },
-    );
-  }
+    if (state is Authenticated) {
+      return const MainNavigationWrapper();
+    }
 
-  int _currentIndex = 0;
+    if (state is AuthInitial) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
-  final List<Widget> _pages = [
-    const DashboardPage(),
-    const AnalyticsPage(),
-    const AlertsPage(),
-    const SettingsPage(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: _pages[_currentIndex],
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.neonGreen,
-        shape: const CircleBorder(),
-        onPressed: _showQuickActionsSheet,
-        child: const Icon(Icons.add, color: Colors.black, size: 32),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-      ),
-    );
+    return const LoginPage();
   }
 }

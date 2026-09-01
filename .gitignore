@@ -1,1 +1,8 @@
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+app/secrets/firebase-service-account.json
+
 embedded/.env
