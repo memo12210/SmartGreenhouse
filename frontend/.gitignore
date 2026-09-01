@@ -55,7 +55,12 @@ unlinked_spec.ds
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.java
 **/android/key.properties
+**/android/app/google-services.json
 *.jks
+
+# iOS/macOS Firebase config
+**/ios/Runner/GoogleService-Info.plist
+**/macos/Runner/GoogleService-Info.plist
 
 # iOS/XCode related
 **/ios/**/*.mode1v3
